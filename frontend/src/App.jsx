@@ -8,6 +8,9 @@ import { PublicOnlyRoute } from "@/routes/public-only-route"
 import { LoginPage } from "@/pages/auth/login-page"
 import { RegisterPage } from "@/pages/auth/register-page"
 import { RecipesPage } from "@/pages/recipes-page"
+import { NewRecipePage } from "@/pages/recipes/new-recipe-page"
+import { EditRecipePage } from "@/pages/recipes/edit-recipe-page"
+import { RecipeDetailPage } from "@/pages/recipes/recipe-detail-page"
 import { CookbooksPage } from "@/pages/cookbooks-page"
 import { PlanningPage } from "@/pages/planning-page"
 import { FavoritesPage } from "@/pages/favorites-page"
@@ -48,6 +51,9 @@ function App() {
             </ProtectedRoute>
           }>
           <Route path="/recipes" element={<RecipesPage />} />
+          <Route path="/recipes/new" element={<NewRecipePage />} />
+          <Route path="/recipes/:id" element={<RecipeDetailPage />} />
+          <Route path="/recipes/:id/edit" element={<EditRecipePage />} />
           <Route path="/cookbooks" element={<CookbooksPage />} />
           <Route path="/planning" element={<PlanningPage />} />
           <Route path="/favorites" element={<FavoritesPage />} />

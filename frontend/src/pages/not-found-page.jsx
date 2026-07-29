@@ -10,7 +10,9 @@ export function NotFoundPage() {
         <h1 className="text-lg font-semibold">Page introuvable</h1>
         <p className="text-sm text-muted-foreground">Cette page n'existe pas ou plus.</p>
       </div>
-      <Button render={<Link to="/" />}>Retour à l'accueil</Button>
+      <Button render={<Link to="/" />} nativeButton={false}>
+        Retour à l'accueil
+      </Button>
     </div>
   )
 }

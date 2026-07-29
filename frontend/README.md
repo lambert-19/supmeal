@@ -11,6 +11,8 @@ Client web de SUPMEAL (gestion de recettes et planification de repas). Ce client
 - **zustand** (avec persistance `localStorage`) pour l'état global (auth, etc.)
 - **next-themes** pour le thème clair/sombre
 - **sonner** pour les notifications toast
+- **react-dropzone** pour l'upload d'images par glisser-déposer (recettes)
+- **embla-carousel-react** (via le composant `carousel` de shadcn) pour le carrousel d'images d'une recette
 - **axios**, **socket.io-client**, **papaparse**, **file-saver** : prévus pour les appels API, la messagerie temps réel et l'import/export, au fur et à mesure de l'avancement du backend
 
 ## Lancer le projet
@@ -29,26 +31,35 @@ Autres scripts : `npm run build` (build de production), `npm run preview` (prév
 ```
 src/
   components/
-    ui/          composants shadcn/ui générés (button, input, sheet, dropdown-menu, ...)
+    ui/          composants shadcn/ui générés (button, input, sheet, dropdown-menu, carousel, alert-dialog, ...)
     layout/       sidebar, topbar, menu utilisateur, liens de navigation
-    *.jsx          composants partagés (page-header, empty-state, form-field, theme-toggle)
+    recipes/      carte recette, formulaire recette, upload d'images en galerie
+    *.jsx          composants partagés (page-header, empty-state, form-field, theme-toggle, tag-input)
   layouts/         layout d'authentification (écran scindé) et layout applicatif (sidebar + topbar)
   routes/          garde-fous de routage (route protégée / route publique uniquement)
+  hooks/           hooks partagés (use-my-recipes : recettes de l'utilisateur connecté)
   pages/
     auth/          connexion, inscription
     settings/       les 4 onglets de la page Paramètres (profil, sécurité, connexions, préférences)
-    *.jsx          pages applicatives (recettes, cookbooks, planning, favoris, paramètres)
+    recipes/        création, édition, détail d'une recette
+    *.jsx          pages applicatives (liste des recettes, cookbooks, planning, favoris, paramètres)
   lib/
-    stores/        state global zustand (auth-store.js)
-    schemas/        schémas de validation zod (auth.js, settings.js)
-    constants/      listes de référence (régimes, cuisines, allergènes, fournisseurs OAuth2)
+    stores/        state global zustand (auth-store.js, recipes-store.js)
+    schemas/        schémas de validation zod (auth.js, settings.js, recipe.js)
+    constants/      listes de référence (régimes, cuisines, allergènes, fournisseurs OAuth2, unités, tags, taille max image)
     nav-items.js   liste des liens de navigation de la sidebar
     utils.js        helper `cn` (clsx + tailwind-merge)
 ```
 
 ## État d'avancement
 
-Le routing, le layout applicatif (sidebar/topbar, thème clair/sombre), les pages de connexion/inscription et la page Paramètres (profil, sécurité, connexions OAuth2, préférences culinaires) sont en place. Les pages Recettes, Cookbooks, Planning et Favoris sont pour l'instant des **placeholders** (état vide) en attendant que les fonctionnalités correspondantes soient développées.
+Le routing, le layout applicatif (sidebar/topbar, thème clair/sombre), les pages de connexion/inscription, la page Paramètres (profil, sécurité, connexions OAuth2, préférences culinaires) et la gestion des recettes (liste, création, édition, détail, favoris, jusqu'à 10 images en carrousel) sont en place. Les pages Cookbooks, Planning et Favoris sont pour l'instant des **placeholders** (état vide) en attendant que les fonctionnalités correspondantes soient développées — la page Favoris devra filtrer `useMyRecipes()` sur `favorite: true`.
+
+### Gestion des recettes (mock)
+
+Comme pour l'auth, `src/lib/stores/recipes-store.js` simule un backend directement dans le navigateur (zustand + `persist`) : `addRecipe`, `updateRecipe`, `deleteRecipe`, `toggleFavorite`, avec deux recettes de démonstration préchargées une seule fois (elles ne réapparaissent pas si supprimées). Chaque recette peut contenir jusqu'à 10 images (converties en data URL côté client, 2 Mo max chacune), affichées dans un format 4:3 uniforme (`object-cover`) partout dans l'app pour éviter tout étirement ou recadrage incohérent selon l'orientation de la photo d'origine.
+
+À faire dès que l'API recettes existe : remplacer `recipes-store.js` par de vrais appels API (même logique que pour `auth-store.js` ci-dessous) et déplacer l'upload d'images vers un vrai stockage serveur (`multer` est déjà en dépendance backend).
 
 ### Authentification actuellement mockée
 
