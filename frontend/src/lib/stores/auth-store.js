@@ -42,8 +42,7 @@ export const useAuthStore = create(
         const found = users.find((u) => u.email === email && u.password === password)
         set({ isLoading: false })
         if (!found) throw new Error("invalid_credentials")
-        const { password: _password, ...safeUser } = found
-        set({ user: safeUser })
+        set({ user: { id: found.id, name: found.name, email: found.email } })
       },
 
       async register({ name, email, password }) {
