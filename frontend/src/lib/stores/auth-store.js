@@ -2,11 +2,26 @@ import { create } from "zustand"
 import { persist } from "zustand/middleware"
 
 const MOCK_USERS_KEY = "supmeal_mock_users"
+
+const DEFAULT_PREFERENCES = {
+  dietaryRegime: "none",
+  allergies: [],
+  favoriteCuisine: "none",
+  defaultServings: 4,
+}
+
+const DEFAULT_CONNECTIONS = {
+  google: false,
+  github: false,
+}
+
 const DEMO_USER = {
   id: "demo-user",
   name: "Compte de démonstration",
   email: "demo@supmeal.fr",
   password: "supmeal123",
+  preferences: { ...DEFAULT_PREFERENCES, dietaryRegime: "vegetarian", favoriteCuisine: "italian", allergies: ["gluten"] },
+  connections: { ...DEFAULT_CONNECTIONS, google: true },
 }
 
 function readMockUsers() {
@@ -25,13 +40,28 @@ function writeMockUsers(users) {
   localStorage.setItem(MOCK_USERS_KEY, JSON.stringify(users))
 }
 
+function updateMockUser(id, patch) {
+  const users = readMockUsers()
+  writeMockUsers(users.map((u) => (u.id === id ? { ...u, ...patch } : u)))
+}
+
+function toSafeUser(record) {
+  return {
+    id: record.id,
+    name: record.name,
+    email: record.email,
+    preferences: { ...DEFAULT_PREFERENCES, ...record.preferences },
+    connections: { ...DEFAULT_CONNECTIONS, ...record.connections },
+  }
+}
+
 function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
 export const useAuthStore = create(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
       isLoading: false,
 
@@ -42,7 +72,7 @@ export const useAuthStore = create(
         const found = users.find((u) => u.email === email && u.password === password)
         set({ isLoading: false })
         if (!found) throw new Error("invalid_credentials")
-        set({ user: { id: found.id, name: found.name, email: found.email } })
+        set({ user: toSafeUser(found) })
       },
 
       async register({ name, email, password }) {
@@ -53,18 +83,65 @@ export const useAuthStore = create(
           set({ isLoading: false })
           throw new Error("email_taken")
         }
-        const newUser = { id: `user-${Math.random().toString(36).slice(2, 10)}`, name, email, password }
+        const newUser = {
+          id: `user-${Math.random().toString(36).slice(2, 10)}`,
+          name,
+          email,
+          password,
+          preferences: DEFAULT_PREFERENCES,
+          connections: DEFAULT_CONNECTIONS,
+        }
         writeMockUsers([...users, newUser])
-        set({ isLoading: false, user: { id: newUser.id, name, email } })
+        set({ isLoading: false, user: toSafeUser(newUser) })
       },
 
       logout() {
         set({ user: null })
       },
+
+      async updateProfile({ name }) {
+        const { user } = get()
+        if (!user) throw new Error("not_authenticated")
+        await wait(300)
+        updateMockUser(user.id, { name })
+        set({ user: { ...user, name } })
+      },
+
+      async changePassword({ currentPassword, newPassword }) {
+        const { user } = get()
+        if (!user) throw new Error("not_authenticated")
+        await wait(300)
+        const record = readMockUsers().find((u) => u.id === user.id)
+        if (!record || record.password !== currentPassword) {
+          throw new Error("invalid_current_password")
+        }
+        updateMockUser(user.id, { password: newPassword })
+      },
+
+      async updatePreferences(preferences) {
+        const { user } = get()
+        if (!user) throw new Error("not_authenticated")
+        await wait(300)
+        updateMockUser(user.id, { preferences })
+        set({ user: { ...user, preferences } })
+      },
+
+      toggleOAuthConnection(provider) {
+        const { user } = get()
+        if (!user) return
+        const connections = { ...user.connections, [provider]: !user.connections[provider] }
+        updateMockUser(user.id, { connections })
+        set({ user: { ...user, connections } })
+      },
     }),
     {
       name: "supmeal-auth",
       partialize: (state) => ({ user: state.user }),
+      merge: (persistedState, currentState) => {
+        const merged = { ...currentState, ...persistedState }
+        if (merged.user) merged.user = toSafeUser(merged.user)
+        return merged
+      },
     }
   )
 )

@@ -36,17 +36,19 @@ src/
   routes/          garde-fous de routage (route protégée / route publique uniquement)
   pages/
     auth/          connexion, inscription
+    settings/       les 4 onglets de la page Paramètres (profil, sécurité, connexions, préférences)
     *.jsx          pages applicatives (recettes, cookbooks, planning, favoris, paramètres)
   lib/
     stores/        state global zustand (auth-store.js)
-    schemas/        schémas de validation zod
+    schemas/        schémas de validation zod (auth.js, settings.js)
+    constants/      listes de référence (régimes, cuisines, allergènes, fournisseurs OAuth2)
     nav-items.js   liste des liens de navigation de la sidebar
     utils.js        helper `cn` (clsx + tailwind-merge)
 ```
 
 ## État d'avancement
 
-Le routing, le layout applicatif (sidebar/topbar, thème clair/sombre) et les pages de connexion/inscription sont en place. Les pages Recettes, Cookbooks, Planning, Favoris et Paramètres sont pour l'instant des **placeholders** (état vide) en attendant que les fonctionnalités correspondantes soient développées.
+Le routing, le layout applicatif (sidebar/topbar, thème clair/sombre), les pages de connexion/inscription et la page Paramètres (profil, sécurité, connexions OAuth2, préférences culinaires) sont en place. Les pages Recettes, Cookbooks, Planning et Favoris sont pour l'instant des **placeholders** (état vide) en attendant que les fonctionnalités correspondantes soient développées.
 
 ### Authentification actuellement mockée
 
