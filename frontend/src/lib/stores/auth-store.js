@@ -59,6 +59,17 @@ function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
+export function findMockUserByEmail(email) {
+  const normalized = email.trim().toLowerCase()
+  const user = readMockUsers().find((u) => u.email.toLowerCase() === normalized)
+  return user ? { id: user.id, name: user.name, email: user.email } : null
+}
+
+export function findMockUserById(id) {
+  const user = readMockUsers().find((u) => u.id === id)
+  return user ? { id: user.id, name: user.name, email: user.email } : null
+}
+
 export const useAuthStore = create(
   persist(
     (set, get) => ({

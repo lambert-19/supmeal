@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom"
 import { ChefHat, Menu, Search } from "lucide-react"
 
@@ -16,10 +16,12 @@ export function AppTopbar() {
   const isRecipesPage = location.pathname === "/recipes"
   const [searchParams, setSearchParams] = useSearchParams()
   const [draftQuery, setDraftQuery] = useState("")
+  const [wasOnRecipesPage, setWasOnRecipesPage] = useState(isRecipesPage)
 
-  useEffect(() => {
+  if (isRecipesPage !== wasOnRecipesPage) {
+    setWasOnRecipesPage(isRecipesPage)
     if (!isRecipesPage) setDraftQuery("")
-  }, [isRecipesPage])
+  }
 
   const query = isRecipesPage ? (searchParams.get("q") ?? "") : draftQuery
 

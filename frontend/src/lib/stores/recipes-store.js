@@ -25,6 +25,7 @@ const DEMO_RECIPES = [
     tags: ["Italien", "Plat principal", "Rapide"],
     images: [],
     source: "",
+    cookbookId: null,
     favorite: true,
     createdAt: 1750000000000,
     updatedAt: 1750000000000,
@@ -53,6 +54,7 @@ const DEMO_RECIPES = [
     tags: ["Végétarien", "Sans gluten", "Entrée"],
     images: [],
     source: "",
+    cookbookId: null,
     favorite: false,
     createdAt: 1750000100000,
     updatedAt: 1750000100000,
@@ -64,9 +66,13 @@ function createId() {
 }
 
 function normalizeRecipe(recipe) {
-  if (Array.isArray(recipe.images)) return recipe
-  const { imageUrl, ...rest } = recipe
-  return { ...rest, images: imageUrl ? [imageUrl] : [] }
+  const normalized = Array.isArray(recipe.images)
+    ? recipe
+    : (() => {
+        const { imageUrl, ...rest } = recipe
+        return { ...rest, images: imageUrl ? [imageUrl] : [] }
+      })()
+  return { cookbookId: null, ...normalized }
 }
 
 export const useRecipesStore = create(
@@ -79,6 +85,7 @@ export const useRecipesStore = create(
           id: createId(),
           ownerId,
           favorite: false,
+          cookbookId: null,
           createdAt: Date.now(),
           updatedAt: Date.now(),
           ...data,

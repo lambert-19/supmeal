@@ -1,0 +1,359 @@
+import { useMemo, useState } from "react"
+import { Link, Navigate, useNavigate, useParams } from "react-router-dom"
+import { Controller, useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { toast } from "sonner"
+import { BookOpen, ChefHat, Pencil, Search, Trash2, UserPlus, X } from "lucide-react"
+
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Card } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import { FormField } from "@/components/form-field"
+import { EmptyState } from "@/components/empty-state"
+import { useAuthStore, findMockUserById } from "@/lib/stores/auth-store"
+import { useCookbooksStore } from "@/lib/stores/cookbooks-store"
+import { useRecipesStore } from "@/lib/stores/recipes-store"
+import { useMyRecipes } from "@/hooks/use-my-recipes"
+import { useCookbookRecipes } from "@/hooks/use-cookbook-recipes"
+import { getCookbookRole, canManageCookbook, canEditRecipes } from "@/lib/cookbook-permissions"
+import { COOKBOOK_ROLES } from "@/lib/constants/cookbook"
+import { inviteMemberSchema } from "@/lib/schemas/cookbook"
+
+const ROLE_LABELS = {
+  creator: "Créateur",
+  ...Object.fromEntries(COOKBOOK_ROLES.map((role) => [role.value, role.label])),
+}
+
+export function CookbookDetailPage() {
+  const { id } = useParams()
+  const user = useAuthStore((s) => s.user)
+  const cookbooks = useCookbooksStore((s) => s.cookbooks)
+  const deleteCookbook = useCookbooksStore((s) => s.deleteCookbook)
+  const inviteMember = useCookbooksStore((s) => s.inviteMember)
+  const updateMemberRole = useCookbooksStore((s) => s.updateMemberRole)
+  const removeMember = useCookbooksStore((s) => s.removeMember)
+  const updateRecipe = useRecipesStore((s) => s.updateRecipe)
+  const myRecipes = useMyRecipes()
+  const cookbookRecipes = useCookbookRecipes(id)
+  const navigate = useNavigate()
+
+  const [query, setQuery] = useState("")
+  const [pendingAdd, setPendingAdd] = useState("")
+
+  const {
+    control,
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm({
+    resolver: zodResolver(inviteMemberSchema),
+    defaultValues: { email: "", role: "editor" },
+  })
+
+  const cookbook = cookbooks.find((c) => c.id === id)
+  const role = cookbook ? getCookbookRole(cookbook, user) : null
+
+  const owner = useMemo(() => (cookbook ? findMockUserById(cookbook.ownerId) : null), [cookbook?.ownerId])
+
+  const filteredRecipes = useMemo(() => {
+    const normalized = query.trim().toLowerCase()
+    if (!normalized) return cookbookRecipes
+    return cookbookRecipes.filter((recipe) => {
+      const haystack = [recipe.title, ...recipe.tags, ...recipe.ingredients.map((i) => i.name)]
+        .join(" ")
+        .toLowerCase()
+      return haystack.includes(normalized)
+    })
+  }, [cookbookRecipes, query])
+
+  const unassignedRecipes = useMemo(() => myRecipes.filter((recipe) => !recipe.cookbookId), [myRecipes])
+
+  if (!cookbook || !role) return <Navigate to="/cookbooks" replace />
+
+  const isCreator = canManageCookbook(role)
+  const canEdit = canEditRecipes(role)
+  const allMembers = [
+    { userId: cookbook.ownerId, email: owner?.email ?? "", name: owner?.name ?? "Créateur", role: "creator" },
+    ...cookbook.members,
+  ]
+
+  function handleDelete() {
+    deleteCookbook(cookbook.id)
+    toast.success("Cookbook supprimé.")
+    navigate("/cookbooks", { replace: true })
+  }
+
+  function onInvite(values) {
+    const normalizedEmail = values.email.trim().toLowerCase()
+    if (normalizedEmail === user.email.toLowerCase()) {
+      toast.error("Vous êtes déjà le créateur de ce cookbook.")
+      return
+    }
+    const member = inviteMember(cookbook.id, { ...values, email: normalizedEmail })
+    toast.success(
+      member.userId
+        ? `${member.name} a été ajouté au cookbook.`
+        : `Invitation enregistrée pour ${normalizedEmail} (accès dès la création de son compte).`
+    )
+    reset({ email: "", role: "editor" })
+  }
+
+  function handleAddRecipe(recipeId) {
+    updateRecipe(recipeId, { cookbookId: cookbook.id })
+    toast.success("Recette ajoutée au cookbook.")
+    setPendingAdd("")
+  }
+
+  function handleRemoveRecipe(recipeId) {
+    updateRecipe(recipeId, { cookbookId: null })
+    toast.success("Recette retirée du cookbook.")
+  }
+
+  return (
+    <div className="max-w-3xl space-y-8">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <BookOpen className="size-5" />
+          </div>
+          <div>
+            <Link to="/cookbooks" className="text-sm text-muted-foreground hover:underline">
+              ← Cookbooks
+            </Link>
+            <div className="flex items-center gap-2">
+              <h1 className="font-heading text-2xl font-semibold">{cookbook.name}</h1>
+              <Badge variant="secondary">{ROLE_LABELS[role]}</Badge>
+            </div>
+            {cookbook.description && (
+              <p className="max-w-md text-sm text-muted-foreground">{cookbook.description}</p>
+            )}
+          </div>
+        </div>
+
+        {isCreator && (
+          <div className="flex shrink-0 items-center gap-2">
+            <Button variant="outline" render={<Link to={`/cookbooks/${cookbook.id}/edit`} />} nativeButton={false}>
+              <Pencil />
+              Modifier
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger render={<Button variant="outline" size="icon" />}>
+                <Trash2 className="size-4" />
+                <span className="sr-only">Supprimer</span>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Supprimer ce cookbook ?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Cette action est irréversible. « {cookbook.name} » et son partage avec les membres seront
+                    supprimés (les recettes elles-mêmes ne sont pas supprimées).
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Annuler</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDelete}>Supprimer</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-3">
+        <h2 className="font-heading text-lg font-semibold">Membres ({allMembers.length})</h2>
+        <div className="space-y-2">
+          {allMembers.map((member) => {
+            const isSelf =
+              (member.userId && member.userId === user.id) || member.email.toLowerCase() === user.email.toLowerCase()
+            const isOwnerRow = member.role === "creator"
+            return (
+              <div
+                key={member.email || member.userId}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-3">
+                <div>
+                  <p className="text-sm font-medium">
+                    {member.name}
+                    {isSelf && <span className="text-muted-foreground"> (vous)</span>}
+                  </p>
+                  <div className="flex items-center gap-1.5">
+                    {member.email && <p className="text-xs text-muted-foreground">{member.email}</p>}
+                    {!isOwnerRow && !member.userId && (
+                      <Badge variant="outline" className="h-4 px-1.5 text-[10px]">
+                        En attente
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {isCreator && !isOwnerRow ? (
+                    <Select value={member.role} onValueChange={(value) => updateMemberRole(cookbook.id, member.email, value)}>
+                      <SelectTrigger size="sm" className="w-36">
+                        <SelectValue>
+                          {(value) => COOKBOOK_ROLES.find((option) => option.value === value)?.label}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {COOKBOOK_ROLES.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Badge>{ROLE_LABELS[member.role]}</Badge>
+                  )}
+                  {isCreator && !isOwnerRow && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeMember(cookbook.id, member.email)}
+                      aria-label={`Retirer ${member.name}`}>
+                      <X className="size-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        {isCreator && (
+          <form
+            onSubmit={handleSubmit(onInvite)}
+            className="flex flex-wrap items-end gap-2 rounded-lg border border-dashed border-border p-3"
+            noValidate>
+            <FormField id="invite-email" label="Inviter par email" error={errors.email?.message} className="min-w-48 flex-1">
+              <Input id="invite-email" type="email" placeholder="ami@exemple.com" aria-invalid={!!errors.email} {...register("email")} />
+            </FormField>
+            <FormField id="invite-role" label="Rôle" error={errors.role?.message}>
+              <Controller
+                control={control}
+                name="role"
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger id="invite-role" className="w-40">
+                      <SelectValue>
+                        {(value) => COOKBOOK_ROLES.find((option) => option.value === value)?.label}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {COOKBOOK_ROLES.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </FormField>
+            <Button type="submit" disabled={isSubmitting}>
+              <UserPlus />
+              Inviter
+            </Button>
+          </form>
+        )}
+      </div>
+
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-heading text-lg font-semibold">Recettes ({cookbookRecipes.length})</h2>
+          {canEdit && unassignedRecipes.length > 0 && (
+            <Select value={pendingAdd} onValueChange={handleAddRecipe}>
+              <SelectTrigger className="w-64">
+                <SelectValue placeholder="Ajouter une de mes recettes..." />
+              </SelectTrigger>
+              <SelectContent>
+                {unassignedRecipes.map((recipe) => (
+                  <SelectItem key={recipe.id} value={recipe.id}>
+                    {recipe.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
+
+        {cookbookRecipes.length > 0 && (
+          <div className="relative max-w-sm">
+            <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Rechercher dans ce cookbook..."
+              className="pl-8"
+              aria-label="Rechercher dans ce cookbook"
+            />
+          </div>
+        )}
+
+        {cookbookRecipes.length === 0 ? (
+          <EmptyState
+            icon={ChefHat}
+            title="Aucune recette dans ce cookbook"
+            description={
+              canEdit
+                ? "Ajoutez une de vos recettes grâce au sélecteur ci-dessus."
+                : "Les membres éditeurs peuvent y ajouter des recettes."
+            }
+          />
+        ) : filteredRecipes.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Aucune recette ne correspond à « {query} ».</p>
+        ) : (
+          <div className="space-y-2">
+            {filteredRecipes.map((recipe) => (
+              <Card key={recipe.id} className="overflow-hidden py-0">
+                <div className="flex items-center gap-3 p-3">
+                  <Link to={`/recipes/${recipe.id}`} className="flex min-w-0 flex-1 items-center gap-3">
+                    <div className="aspect-4/3 w-16 shrink-0 overflow-hidden rounded-md bg-muted">
+                      {recipe.images[0] ? (
+                        <img src={recipe.images[0]} alt={recipe.title} className="size-full object-cover" />
+                      ) : (
+                        <div className="flex size-full items-center justify-center">
+                          <ChefHat className="size-4 text-primary/40" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">{recipe.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {recipe.prepTime + recipe.cookTime} min · {recipe.servings} portions
+                      </p>
+                    </div>
+                  </Link>
+                  {canEdit && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleRemoveRecipe(recipe.id)}
+                      aria-label="Retirer du cookbook">
+                      <X className="size-4" />
+                    </Button>
+                  )}
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}

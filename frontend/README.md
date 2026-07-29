@@ -34,26 +34,29 @@ src/
     ui/          composants shadcn/ui générés (button, input, sheet, dropdown-menu, carousel, alert-dialog, ...)
     layout/       sidebar, topbar, menu utilisateur, liens de navigation
     recipes/      carte recette, formulaire recette, upload d'images en galerie
+    cookbooks/    carte cookbook, formulaire cookbook
     *.jsx          composants partagés (page-header, empty-state, form-field, theme-toggle, tag-input)
   layouts/         layout d'authentification (écran scindé) et layout applicatif (sidebar + topbar)
   routes/          garde-fous de routage (route protégée / route publique uniquement)
-  hooks/           hooks partagés (use-my-recipes : recettes de l'utilisateur connecté)
+  hooks/           hooks partagés (use-my-recipes, use-my-cookbooks, use-cookbook-recipes)
   pages/
     auth/          connexion, inscription
     settings/       les 4 onglets de la page Paramètres (profil, sécurité, connexions, préférences)
     recipes/        création, édition, détail d'une recette
+    cookbooks/      création, édition, détail d'un cookbook (membres, rôles, recettes)
     *.jsx          pages applicatives (liste des recettes, cookbooks, planning, favoris, paramètres)
   lib/
-    stores/        state global zustand (auth-store.js, recipes-store.js)
-    schemas/        schémas de validation zod (auth.js, settings.js, recipe.js)
-    constants/      listes de référence (régimes, cuisines, allergènes, fournisseurs OAuth2, unités, tags, taille max image)
+    stores/        state global zustand (auth-store.js, recipes-store.js, cookbooks-store.js)
+    schemas/        schémas de validation zod (auth.js, settings.js, recipe.js, cookbook.js)
+    constants/      listes de référence (régimes, cuisines, allergènes, fournisseurs OAuth2, unités, tags, rôles de cookbook, taille max image)
+    cookbook-permissions.js  calcul du rôle d'un utilisateur sur un cookbook + garde-fous de permission
     nav-items.js   liste des liens de navigation de la sidebar
     utils.js        helper `cn` (clsx + tailwind-merge)
 ```
 
 ## État d'avancement
 
-Le routing, le layout applicatif (sidebar/topbar, thème clair/sombre), les pages de connexion/inscription, la page Paramètres (profil, sécurité, connexions OAuth2, préférences culinaires), la gestion des recettes (liste, création, édition, détail, favoris, jusqu'à 10 images en carrousel) et la recherche/filtrage des recettes sont en place. Les pages Cookbooks, Planning et Favoris sont pour l'instant des **placeholders** (état vide) en attendant que les fonctionnalités correspondantes soient développées — la page Favoris devra filtrer `useMyRecipes()` sur `favorite: true`.
+Le routing, le layout applicatif (sidebar/topbar, thème clair/sombre), les pages de connexion/inscription, la page Paramètres (profil, sécurité, connexions OAuth2, préférences culinaires), la gestion des recettes (liste, création, édition, détail, favoris, jusqu'à 10 images en carrousel), la recherche/filtrage des recettes et les cookbooks partagés (création, invitation, rôles, rattachement de recettes) sont en place. Les pages Planning et Favoris sont pour l'instant des **placeholders** (état vide) en attendant que les fonctionnalités correspondantes soient développées — la page Favoris devra filtrer `useMyRecipes()` sur `favorite: true`.
 
 ### Recherche et filtrage des recettes
 
@@ -64,6 +67,16 @@ La barre de recherche de la topbar (`components/layout/app-topbar.jsx`) est acti
 Comme pour l'auth, `src/lib/stores/recipes-store.js` simule un backend directement dans le navigateur (zustand + `persist`) : `addRecipe`, `updateRecipe`, `deleteRecipe`, `toggleFavorite`, avec deux recettes de démonstration préchargées une seule fois (elles ne réapparaissent pas si supprimées). Chaque recette peut contenir jusqu'à 10 images (converties en data URL côté client, 2 Mo max chacune), affichées dans un format 4:3 uniforme (`object-cover`) partout dans l'app pour éviter tout étirement ou recadrage incohérent selon l'orientation de la photo d'origine.
 
 À faire dès que l'API recettes existe : remplacer `recipes-store.js` par de vrais appels API (même logique que pour `auth-store.js` ci-dessous) et déplacer l'upload d'images vers un vrai stockage serveur (`multer` est déjà en dépendance backend).
+
+### Cookbooks partagés (mock)
+
+`src/lib/stores/cookbooks-store.js` simule un backend de cookbooks partagés : `addCookbook`, `updateCookbook`, `deleteCookbook`, `inviteMember`, `updateMemberRole`, `removeMember`. Chaque cookbook a un créateur (`ownerId`) et une liste de membres identifiés par email (pas seulement par `userId`), ce qui permet d'inviter quelqu'un qui n'a pas encore de compte : l'invitation reste "en attente" jusqu'à ce que cet email corresponde à un compte mock existant (`findMockUserByEmail` dans `auth-store.js`), moment où elle est automatiquement reconnue comme active (voir `getCookbookRole` dans `lib/cookbook-permissions.js`, qui recherche par `userId` **ou** par email).
+
+Quatre rôles : créateur (implicite, propriétaire), éditeur, commentateur, lecteur (`lib/constants/cookbook.js`). Seul le créateur peut modifier/supprimer le cookbook, inviter, changer un rôle ou retirer un membre ; créateur et éditeur peuvent rattacher/retirer des recettes existantes au cookbook. Le rôle "commentateur" est réservé pour la fonctionnalité de commentaires à venir (pas encore de différence de comportement avec "lecteur").
+
+Une recette n'appartient qu'à un seul cookbook à la fois (`recipe.cookbookId`, nullable, ajouté à `recipes-store.js`) ; l'ajout/retrait se fait depuis la page détail du cookbook (`cookbooks/cookbook-detail-page.jsx`), qui a aussi sa propre barre de recherche (indépendante de celle de la topbar, qui ne cible que `/recipes`).
+
+À faire dès que l'API cookbooks existe : remplacer `cookbooks-store.js` par de vrais appels API et une vraie notification d'invitation (email) plutôt qu'une résolution silencieuse par email.
 
 ### Authentification actuellement mockée
 

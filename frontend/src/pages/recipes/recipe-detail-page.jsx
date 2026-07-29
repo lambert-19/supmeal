@@ -1,6 +1,6 @@
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom"
 import { toast } from "sonner"
-import { ChefHat, Clock, Heart, Pencil, Trash2, Users } from "lucide-react"
+import { BookOpen, ChefHat, Clock, Heart, Pencil, Trash2, Users } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -18,16 +18,20 @@ import {
 } from "@/components/ui/alert-dialog"
 import { useMyRecipes } from "@/hooks/use-my-recipes"
 import { useRecipesStore } from "@/lib/stores/recipes-store"
+import { useCookbooksStore } from "@/lib/stores/cookbooks-store"
 
 export function RecipeDetailPage() {
   const { id } = useParams()
   const recipes = useMyRecipes()
   const toggleFavorite = useRecipesStore((s) => s.toggleFavorite)
   const deleteRecipe = useRecipesStore((s) => s.deleteRecipe)
+  const cookbooks = useCookbooksStore((s) => s.cookbooks)
   const navigate = useNavigate()
 
   const recipe = recipes.find((r) => r.id === id)
   if (!recipe) return <Navigate to="/recipes" replace />
+
+  const cookbook = recipe.cookbookId ? cookbooks.find((c) => c.id === recipe.cookbookId) : null
 
   function handleDelete() {
     deleteRecipe(id)
@@ -121,6 +125,15 @@ export function RecipeDetailPage() {
           {recipe.servings} portions
         </span>
       </div>
+
+      {cookbook && (
+        <Link to={`/cookbooks/${cookbook.id}`} className="inline-block w-fit">
+          <Badge variant="outline" className="gap-1">
+            <BookOpen className="size-3" />
+            {cookbook.name}
+          </Badge>
+        </Link>
+      )}
 
       {recipe.tags.length > 0 && (
         <div className="flex flex-wrap gap-1.5">

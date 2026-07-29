@@ -12,6 +12,9 @@ import { NewRecipePage } from "@/pages/recipes/new-recipe-page"
 import { EditRecipePage } from "@/pages/recipes/edit-recipe-page"
 import { RecipeDetailPage } from "@/pages/recipes/recipe-detail-page"
 import { CookbooksPage } from "@/pages/cookbooks-page"
+import { NewCookbookPage } from "@/pages/cookbooks/new-cookbook-page"
+import { EditCookbookPage } from "@/pages/cookbooks/edit-cookbook-page"
+import { CookbookDetailPage } from "@/pages/cookbooks/cookbook-detail-page"
 import { PlanningPage } from "@/pages/planning-page"
 import { FavoritesPage } from "@/pages/favorites-page"
 import { SettingsPage } from "@/pages/settings-page"
@@ -55,6 +58,9 @@ function App() {
           <Route path="/recipes/:id" element={<RecipeDetailPage />} />
           <Route path="/recipes/:id/edit" element={<EditRecipePage />} />
           <Route path="/cookbooks" element={<CookbooksPage />} />
+          <Route path="/cookbooks/new" element={<NewCookbookPage />} />
+          <Route path="/cookbooks/:id" element={<CookbookDetailPage />} />
+          <Route path="/cookbooks/:id/edit" element={<EditCookbookPage />} />
           <Route path="/planning" element={<PlanningPage />} />
           <Route path="/favorites" element={<FavoritesPage />} />
           <Route path="/settings" element={<SettingsPage />} />
