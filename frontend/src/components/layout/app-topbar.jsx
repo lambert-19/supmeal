@@ -1,0 +1,47 @@
+import { useState } from "react"
+import { ChefHat, Menu, Search } from "lucide-react"
+
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { ThemeToggle } from "@/components/theme-toggle"
+import { NavLinks } from "@/components/layout/nav-links"
+import { UserMenu } from "@/components/layout/user-menu"
+
+export function AppTopbar() {
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
+
+  return (
+    <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border px-4 lg:px-6">
+      <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
+        <SheetTrigger render={<Button variant="ghost" size="icon" className="lg:hidden" />}>
+          <Menu />
+          <span className="sr-only">Ouvrir le menu</span>
+        </SheetTrigger>
+        <SheetContent side="left" className="flex w-72 flex-col gap-0 p-0">
+          <div className="flex h-14 items-center gap-2 px-4">
+            <ChefHat className="size-5 text-primary" />
+            <span className="font-heading text-base font-semibold">SUPMEAL</span>
+          </div>
+          <nav className="flex-1 space-y-0.5 px-3 py-2">
+            <NavLinks onNavigate={() => setMobileNavOpen(false)} />
+          </nav>
+          <UserMenu />
+        </SheetContent>
+      </Sheet>
+
+      <div className="relative w-full max-w-sm">
+        <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder="Rechercher une recette, un ingrédient..."
+          className="pl-8"
+          disabled
+        />
+      </div>
+
+      <div className="ml-auto">
+        <ThemeToggle />
+      </div>
+    </header>
+  )
+}
