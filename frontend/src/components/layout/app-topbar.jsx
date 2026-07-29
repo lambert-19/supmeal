@@ -1,4 +1,5 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom"
 import { ChefHat, Menu, Search } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -10,6 +11,40 @@ import { UserMenu } from "@/components/layout/user-menu"
 
 export function AppTopbar() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const location = useLocation()
+  const navigate = useNavigate()
+  const isRecipesPage = location.pathname === "/recipes"
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [draftQuery, setDraftQuery] = useState("")
+
+  useEffect(() => {
+    if (!isRecipesPage) setDraftQuery("")
+  }, [isRecipesPage])
+
+  const query = isRecipesPage ? (searchParams.get("q") ?? "") : draftQuery
+
+  function handleQueryChange(value) {
+    if (isRecipesPage) {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev)
+          if (value) next.set("q", value)
+          else next.delete("q")
+          return next
+        },
+        { replace: true }
+      )
+    } else {
+      setDraftQuery(value)
+    }
+  }
+
+  function handleSubmit(event) {
+    event.preventDefault()
+    if (!isRecipesPage && query.trim()) {
+      navigate(`/recipes?q=${encodeURIComponent(query.trim())}`)
+    }
+  }
 
   return (
     <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border px-4 lg:px-6">
@@ -30,14 +65,17 @@ export function AppTopbar() {
         </SheetContent>
       </Sheet>
 
-      <div className="relative w-full max-w-sm">
+      <form onSubmit={handleSubmit} className="relative w-full max-w-sm">
         <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
+          type="search"
+          value={query}
+          onChange={(event) => handleQueryChange(event.target.value)}
           placeholder="Rechercher une recette, un ingrédient..."
           className="pl-8"
-          disabled
+          aria-label="Rechercher une recette"
         />
-      </div>
+      </form>
 
       <div className="ml-auto">
         <ThemeToggle />

@@ -53,7 +53,11 @@ src/
 
 ## État d'avancement
 
-Le routing, le layout applicatif (sidebar/topbar, thème clair/sombre), les pages de connexion/inscription, la page Paramètres (profil, sécurité, connexions OAuth2, préférences culinaires) et la gestion des recettes (liste, création, édition, détail, favoris, jusqu'à 10 images en carrousel) sont en place. Les pages Cookbooks, Planning et Favoris sont pour l'instant des **placeholders** (état vide) en attendant que les fonctionnalités correspondantes soient développées — la page Favoris devra filtrer `useMyRecipes()` sur `favorite: true`.
+Le routing, le layout applicatif (sidebar/topbar, thème clair/sombre), les pages de connexion/inscription, la page Paramètres (profil, sécurité, connexions OAuth2, préférences culinaires), la gestion des recettes (liste, création, édition, détail, favoris, jusqu'à 10 images en carrousel) et la recherche/filtrage des recettes sont en place. Les pages Cookbooks, Planning et Favoris sont pour l'instant des **placeholders** (état vide) en attendant que les fonctionnalités correspondantes soient développées — la page Favoris devra filtrer `useMyRecipes()` sur `favorite: true`.
+
+### Recherche et filtrage des recettes
+
+La barre de recherche de la topbar (`components/layout/app-topbar.jsx`) est active : sur `/recipes`, elle lit/écrit le paramètre d'URL `?q=` (via `useSearchParams` de react-router) et filtre en plein texte sur le titre, la source, les tags et les noms d'ingrédients ; depuis n'importe quelle autre page, elle navigue vers `/recipes?q=...` à la soumission. `recipes-page.jsx` ajoute un panneau de filtres (durée totale, favoris uniquement, tags multi-sélection) combinables avec la recherche, avec un bouton de réinitialisation et un état vide dédié ("Aucun résultat") distinct de l'état "Aucune recette".
 
 ### Gestion des recettes (mock)
 
