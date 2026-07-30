@@ -38,7 +38,7 @@ src/
     *.jsx          composants partagés (page-header, empty-state, form-field, theme-toggle, tag-input)
   layouts/         layout d'authentification (écran scindé) et layout applicatif (sidebar + topbar)
   routes/          garde-fous de routage (route protégée / route publique uniquement)
-  hooks/           hooks partagés (use-my-recipes, use-my-cookbooks, use-cookbook-recipes)
+  hooks/           hooks partagés (use-my-recipes : aussi réutilisé par la page Favoris, use-my-cookbooks, use-cookbook-recipes, use-my-planning)
   pages/
     auth/          connexion, inscription
     settings/       les 4 onglets de la page Paramètres (profil, sécurité, connexions, préférences)
@@ -46,17 +46,26 @@ src/
     cookbooks/      création, édition, détail d'un cookbook (membres, rôles, recettes)
     *.jsx          pages applicatives (liste des recettes, cookbooks, planning, favoris, paramètres)
   lib/
-    stores/        state global zustand (auth-store.js, recipes-store.js, cookbooks-store.js)
+    stores/        state global zustand (auth-store.js, recipes-store.js, cookbooks-store.js, planning-store.js)
     schemas/        schémas de validation zod (auth.js, settings.js, recipe.js, cookbook.js)
     constants/      listes de référence (régimes, cuisines, allergènes, fournisseurs OAuth2, unités, tags, rôles de cookbook, taille max image)
     cookbook-permissions.js  calcul du rôle d'un utilisateur sur un cookbook + garde-fous de permission
+    planning.js    utilitaires de dates (semaine, jours) et d'agrégation de quantités pour la liste de courses
     nav-items.js   liste des liens de navigation de la sidebar
     utils.js        helper `cn` (clsx + tailwind-merge)
 ```
 
 ## État d'avancement
 
-Le routing, le layout applicatif (sidebar/topbar, thème clair/sombre), les pages de connexion/inscription, la page Paramètres (profil, sécurité, connexions OAuth2, préférences culinaires), la gestion des recettes (liste, création, édition, détail, favoris, jusqu'à 10 images en carrousel), la recherche/filtrage des recettes et les cookbooks partagés (création, invitation, rôles, rattachement de recettes) sont en place. Les pages Planning et Favoris sont pour l'instant des **placeholders** (état vide) en attendant que les fonctionnalités correspondantes soient développées — la page Favoris devra filtrer `useMyRecipes()` sur `favorite: true`.
+Le routing, le layout applicatif (sidebar/topbar, thème clair/sombre), les pages de connexion/inscription, la page Paramètres (profil, sécurité, connexions OAuth2, préférences culinaires), la gestion des recettes (liste, création, édition, détail, favoris, jusqu'à 10 images en carrousel), la recherche/filtrage des recettes, les cookbooks partagés (création, invitation, rôles, rattachement de recettes), la page Favoris et le Planning des repas sont en place. Restent en attente : la messagerie/les commentaires, et l'import/export.
+
+### Planning des repas
+
+`pages/planning-page.jsx` affiche une vue semaine (7 jours × 3 créneaux : petit-déjeuner/déjeuner/dîner, icône dédiée par créneau) avec navigation semaine précédente/suivante et retour rapide "Aujourd'hui" (jour courant mis en évidence par un anneau de couleur) ; chaque créneau vide propose un `Select` des recettes de l'utilisateur, chaque créneau rempli affiche un lien vers la recette et un bouton de retrait. Les 7 cartes jour ont une largeur fixe confortable et défilent horizontalement (`overflow-x-auto`) plutôt que de se comprimer dans une grille, pour rester lisibles à toutes les tailles d'écran. Un bouton "Liste de courses" ouvre un `Sheet` qui agrège tous les ingrédients des recettes planifiées sur la semaine affichée (sommées quand les quantités sont numériques ou fractionnaires du type `1/2`, "quantité variable" sinon). Stockage mock dans `lib/stores/planning-store.js` (une entrée par date + créneau), utilitaires de dates/agrégation dans `lib/planning.js` (le `Date` natif suffit pour une vue semaine simple, pas besoin de librairie de dates dédiée).
+
+### Favoris
+
+`pages/favorites-page.jsx` réutilise `useMyRecipes()` filtré sur `favorite: true` et les mêmes `RecipeCard` que `/recipes` (bascule favori directement possible depuis cette page). Deux états vides distincts : aucune recette créée du tout (bouton "Nouvelle recette" affiché) vs des recettes existent déjà mais aucune n'est encore marquée favorite.
 
 ### Recherche et filtrage des recettes
 
