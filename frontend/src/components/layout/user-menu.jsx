@@ -10,16 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useAuthStore } from "@/lib/stores/auth-store"
-
-function getInitials(name) {
-  return name
-    .split(" ")
-    .filter(Boolean)
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase()
-}
+import { getInitials } from "@/lib/utils"
 
 export function UserMenu() {
   const user = useAuthStore((s) => s.user)

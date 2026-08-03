@@ -16,22 +16,26 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { useMyRecipes } from "@/hooks/use-my-recipes"
+import { RecipeComments } from "@/components/recipes/recipe-comments"
+import { useAuthStore } from "@/lib/stores/auth-store"
 import { useRecipesStore } from "@/lib/stores/recipes-store"
 import { useCookbooksStore } from "@/lib/stores/cookbooks-store"
+import { getCookbookRole } from "@/lib/cookbook-permissions"
 
 export function RecipeDetailPage() {
   const { id } = useParams()
-  const recipes = useMyRecipes()
+  const user = useAuthStore((s) => s.user)
+  const recipes = useRecipesStore((s) => s.recipes)
   const toggleFavorite = useRecipesStore((s) => s.toggleFavorite)
   const deleteRecipe = useRecipesStore((s) => s.deleteRecipe)
   const cookbooks = useCookbooksStore((s) => s.cookbooks)
   const navigate = useNavigate()
 
   const recipe = recipes.find((r) => r.id === id)
-  if (!recipe) return <Navigate to="/recipes" replace />
-
-  const cookbook = recipe.cookbookId ? cookbooks.find((c) => c.id === recipe.cookbookId) : null
+  const cookbook = recipe?.cookbookId ? cookbooks.find((c) => c.id === recipe.cookbookId) : null
+  const isOwner = recipe?.ownerId === user.id
+  const canView = isOwner || (cookbook && getCookbookRole(cookbook, user) !== null)
+  if (!recipe || !canView) return <Navigate to="/recipes" replace />
 
   function handleDelete() {
     deleteRecipe(id)
@@ -43,46 +47,50 @@ export function RecipeDetailPage() {
     <div className="max-w-2xl space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <Link to="/recipes" className="text-sm text-muted-foreground hover:underline">
-            ← Mes recettes
+          <Link
+            to={cookbook ? `/cookbooks/${cookbook.id}` : "/recipes"}
+            className="text-sm text-muted-foreground hover:underline">
+            ← {cookbook ? cookbook.name : "Mes recettes"}
           </Link>
           <h1 className="font-heading text-2xl font-semibold">{recipe.title}</h1>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => toggleFavorite(recipe.id)}
-            aria-label={recipe.favorite ? "Retirer des favoris" : "Ajouter aux favoris"}>
-            <Heart className={recipe.favorite ? "size-4 fill-primary text-primary" : "size-4"} />
-          </Button>
-          <Button
-            variant="outline"
-            render={<Link to={`/recipes/${recipe.id}/edit`} />}
-            nativeButton={false}>
-            <Pencil />
-            Modifier
-          </Button>
-          <AlertDialog>
-            <AlertDialogTrigger render={<Button variant="outline" size="icon" />}>
-              <Trash2 className="size-4" />
-              <span className="sr-only">Supprimer</span>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Supprimer cette recette ?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Cette action est irréversible. « {recipe.title} » sera définitivement
-                  supprimée.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Annuler</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDelete}>Supprimer</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
+        {isOwner && (
+          <div className="flex shrink-0 items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => toggleFavorite(recipe.id)}
+              aria-label={recipe.favorite ? "Retirer des favoris" : "Ajouter aux favoris"}>
+              <Heart className={recipe.favorite ? "size-4 fill-primary text-primary" : "size-4"} />
+            </Button>
+            <Button
+              variant="outline"
+              render={<Link to={`/recipes/${recipe.id}/edit`} />}
+              nativeButton={false}>
+              <Pencil />
+              Modifier
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger render={<Button variant="outline" size="icon" />}>
+                <Trash2 className="size-4" />
+                <span className="sr-only">Supprimer</span>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Supprimer cette recette ?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Cette action est irréversible. « {recipe.title} » sera définitivement
+                    supprimée.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Annuler</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDelete}>Supprimer</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        )}
       </div>
 
       {recipe.images.length > 0 ? (
@@ -178,6 +186,8 @@ export function RecipeDetailPage() {
           Source : <span className="text-foreground">{recipe.source}</span>
         </p>
       )}
+
+      <RecipeComments recipeId={recipe.id} />
     </div>
   )
 }

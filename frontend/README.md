@@ -38,15 +38,15 @@ src/
     *.jsx          composants partagés (page-header, empty-state, form-field, theme-toggle, tag-input)
   layouts/         layout d'authentification (écran scindé) et layout applicatif (sidebar + topbar)
   routes/          garde-fous de routage (route protégée / route publique uniquement)
-  hooks/           hooks partagés (use-my-recipes : aussi réutilisé par la page Favoris, use-my-cookbooks, use-cookbook-recipes, use-my-planning)
+  hooks/           hooks partagés (use-my-recipes : aussi réutilisé par la page Favoris, use-my-cookbooks, use-cookbook-recipes, use-my-planning, use-recipe-comments, use-cookbook-messages)
   pages/
     auth/          connexion, inscription
     settings/       les 4 onglets de la page Paramètres (profil, sécurité, connexions, préférences)
-    recipes/        création, édition, détail d'une recette
-    cookbooks/      création, édition, détail d'un cookbook (membres, rôles, recettes)
+    recipes/        création, édition, détail d'une recette (avec ses commentaires)
+    cookbooks/      création, édition, détail d'un cookbook (onglets Recettes/Membres/Discussion)
     *.jsx          pages applicatives (liste des recettes, cookbooks, planning, favoris, paramètres)
   lib/
-    stores/        state global zustand (auth-store.js, recipes-store.js, cookbooks-store.js, planning-store.js)
+    stores/        state global zustand (auth-store.js, recipes-store.js, cookbooks-store.js, planning-store.js, comments-store.js, messages-store.js)
     schemas/        schémas de validation zod (auth.js, settings.js, recipe.js, cookbook.js)
     constants/      listes de référence (régimes, cuisines, allergènes, fournisseurs OAuth2, unités, tags, rôles de cookbook, taille max image)
     cookbook-permissions.js  calcul du rôle d'un utilisateur sur un cookbook + garde-fous de permission
@@ -57,7 +57,15 @@ src/
 
 ## État d'avancement
 
-Le routing, le layout applicatif (sidebar/topbar, thème clair/sombre), les pages de connexion/inscription, la page Paramètres (profil, sécurité, connexions OAuth2, préférences culinaires), la gestion des recettes (liste, création, édition, détail, favoris, jusqu'à 10 images en carrousel), la recherche/filtrage des recettes, les cookbooks partagés (création, invitation, rôles, rattachement de recettes), la page Favoris et le Planning des repas sont en place. Restent en attente : la messagerie/les commentaires, et l'import/export.
+Le routing, le layout applicatif (sidebar/topbar, thème clair/sombre), les pages de connexion/inscription, la page Paramètres (profil, sécurité, connexions OAuth2, préférences culinaires), la gestion des recettes (liste, création, édition, détail, favoris, jusqu'à 10 images en carrousel), la recherche/filtrage des recettes, les cookbooks partagés (création, invitation, rôles, rattachement de recettes), la page Favoris, le Planning des repas et la Messagerie/Commentaires sont en place. Reste en attente : l'import/export.
+
+### Messagerie et commentaires
+
+- **Chat de groupe par cookbook** : onglet "Discussion" de `cookbooks/cookbook-detail-page.jsx` (`components/cookbooks/cookbook-chat.jsx`), ouvert à tous les membres quel que soit leur rôle. Bulles alignées à droite pour ses propres messages, à gauche pour les autres. Mock dans `lib/stores/messages-store.js` — **pas de Socket.io réel** (aucun backend à connecter pour l'instant) : les messages sont juste partagés via `localStorage`, donc visibles entre comptes du même navigateur mais pas en temps réel entre deux navigateurs différents.
+- **Commentaires par recette** : section en bas de `recipes/recipe-detail-page.jsx` (`components/recipes/recipe-comments.jsx`), visible par le propriétaire de la recette et par tout membre du cookbook auquel elle est rattachée. Chacun ne peut supprimer que ses propres commentaires. Mock dans `lib/stores/comments-store.js`.
+- **Bug corrigé au passage** : `recipe-detail-page.jsx` ne lisait que `useMyRecipes()` (recettes du seul propriétaire connecté), donc un membre de cookbook cliquant sur une recette partagée par quelqu'un d'autre se faisait rediriger vers `/recipes` sans explication. Corrigé en lisant le store recettes directement et en autorisant l'accès si l'utilisateur est propriétaire **ou** a un rôle sur le cookbook de la recette (`getCookbookRole`) ; le bouton favori et les actions modifier/supprimer restent réservés au propriétaire.
+
+À faire dès qu'un backend Socket.io existe : remplacer `messages-store.js` par de vrais événements `socket.io-client` (déjà en dépendance) pour un vrai temps réel entre navigateurs différents.
 
 ### Planning des repas
 
@@ -81,9 +89,9 @@ Comme pour l'auth, `src/lib/stores/recipes-store.js` simule un backend directeme
 
 `src/lib/stores/cookbooks-store.js` simule un backend de cookbooks partagés : `addCookbook`, `updateCookbook`, `deleteCookbook`, `inviteMember`, `updateMemberRole`, `removeMember`. Chaque cookbook a un créateur (`ownerId`) et une liste de membres identifiés par email (pas seulement par `userId`), ce qui permet d'inviter quelqu'un qui n'a pas encore de compte : l'invitation reste "en attente" jusqu'à ce que cet email corresponde à un compte mock existant (`findMockUserByEmail` dans `auth-store.js`), moment où elle est automatiquement reconnue comme active (voir `getCookbookRole` dans `lib/cookbook-permissions.js`, qui recherche par `userId` **ou** par email).
 
-Quatre rôles : créateur (implicite, propriétaire), éditeur, commentateur, lecteur (`lib/constants/cookbook.js`). Seul le créateur peut modifier/supprimer le cookbook, inviter, changer un rôle ou retirer un membre ; créateur et éditeur peuvent rattacher/retirer des recettes existantes au cookbook. Le rôle "commentateur" est réservé pour la fonctionnalité de commentaires à venir (pas encore de différence de comportement avec "lecteur").
+Quatre rôles : créateur (implicite, propriétaire), éditeur, commentateur, lecteur (`lib/constants/cookbook.js`). Seul le créateur peut modifier/supprimer le cookbook, inviter, changer un rôle ou retirer un membre ; créateur et éditeur peuvent rattacher/retirer des recettes existantes au cookbook. Avec les commentaires et la discussion de cookbook maintenant en place, tous les membres peuvent commenter/discuter quel que soit leur rôle — "commentateur" n'a donc pas encore de comportement distinct de "lecteur" (prévu pour plus tard : restreindre le droit de commenter aux seuls rôles éditeur/commentateur).
 
-Une recette n'appartient qu'à un seul cookbook à la fois (`recipe.cookbookId`, nullable, ajouté à `recipes-store.js`) ; l'ajout/retrait se fait depuis la page détail du cookbook (`cookbooks/cookbook-detail-page.jsx`), qui a aussi sa propre barre de recherche (indépendante de celle de la topbar, qui ne cible que `/recipes`).
+Une recette n'appartient qu'à un seul cookbook à la fois (`recipe.cookbookId`, nullable, ajouté à `recipes-store.js`) ; l'ajout/retrait se fait depuis l'onglet "Recettes" de la page détail du cookbook (`cookbooks/cookbook-detail-page.jsx`, organisée en `Tabs` : Recettes / Membres / Discussion), qui a aussi sa propre barre de recherche (indépendante de celle de la topbar, qui ne cible que `/recipes`).
 
 À faire dès que l'API cookbooks existe : remplacer `cookbooks-store.js` par de vrais appels API et une vraie notification d'invitation (email) plutôt qu'une résolution silencieuse par email.
 

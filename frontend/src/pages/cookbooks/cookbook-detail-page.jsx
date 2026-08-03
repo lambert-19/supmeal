@@ -10,6 +10,8 @@ import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { CookbookChat } from "@/components/cookbooks/cookbook-chat"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -173,8 +175,14 @@ export function CookbookDetailPage() {
         )}
       </div>
 
-      <div className="space-y-3">
-        <h2 className="font-heading text-lg font-semibold">Membres ({allMembers.length})</h2>
+      <Tabs defaultValue="recipes">
+        <TabsList>
+          <TabsTrigger value="recipes">Recettes</TabsTrigger>
+          <TabsTrigger value="members">Membres</TabsTrigger>
+          <TabsTrigger value="chat">Discussion</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="members" className="space-y-3 pt-4">
         <div className="space-y-2">
           {allMembers.map((member) => {
             const isSelf =
@@ -270,9 +278,13 @@ export function CookbookDetailPage() {
             </Button>
           </form>
         )}
-      </div>
+        </TabsContent>
 
-      <div className="space-y-3">
+        <TabsContent value="chat" className="pt-4">
+          <CookbookChat cookbookId={cookbook.id} />
+        </TabsContent>
+
+        <TabsContent value="recipes" className="space-y-3 pt-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="font-heading text-lg font-semibold">Recettes ({cookbookRecipes.length})</h2>
           {canEdit && unassignedRecipes.length > 0 && (
@@ -353,7 +365,8 @@ export function CookbookDetailPage() {
             ))}
           </div>
         )}
-      </div>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
