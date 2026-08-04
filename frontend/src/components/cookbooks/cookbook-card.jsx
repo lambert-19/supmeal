@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { useAuthStore } from "@/lib/stores/auth-store"
 import { useCookbooksStore } from "@/lib/stores/cookbooks-store"
-import { useCookbookRecipes } from "@/hooks/use-cookbook-recipes"
+import { apiErrorMessage } from "@/lib/api"
 import { getCookbookRole, canManageCookbook } from "@/lib/cookbook-permissions"
 import { COOKBOOK_ROLES } from "@/lib/constants/cookbook"
 
@@ -31,16 +31,19 @@ const ROLE_LABELS = {
 export function CookbookCard({ cookbook }) {
   const user = useAuthStore((s) => s.user)
   const deleteCookbook = useCookbooksStore((s) => s.deleteCookbook)
-  const recipes = useCookbookRecipes(cookbook.id)
   const role = getCookbookRole(cookbook, user)
   const isCreator = canManageCookbook(role)
   const memberCount = cookbook.members.length + 1
   const navigate = useNavigate()
   const [confirmOpen, setConfirmOpen] = useState(false)
 
-  function handleDelete() {
-    deleteCookbook(cookbook.id)
-    toast.success("Cookbook supprimé.")
+  async function handleDelete() {
+    try {
+      await deleteCookbook(cookbook.id)
+      toast.success("Cookbook supprimé.")
+    } catch (error) {
+      toast.error(apiErrorMessage(error, "Impossible de supprimer le cookbook."))
+    }
   }
 
   return (
@@ -67,7 +70,7 @@ export function CookbookCard({ cookbook }) {
               {memberCount} membre{memberCount > 1 ? "s" : ""}
             </span>
             <span>
-              {recipes.length} recette{recipes.length > 1 ? "s" : ""}
+              {cookbook.recipesCount} recette{cookbook.recipesCount > 1 ? "s" : ""}
             </span>
           </div>
         </CardContent>

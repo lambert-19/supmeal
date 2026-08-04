@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { MessageCircle, Send } from "lucide-react"
+import { toast } from "sonner"
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -8,6 +9,7 @@ import { EmptyState } from "@/components/empty-state"
 import { useAuthStore } from "@/lib/stores/auth-store"
 import { useMessagesStore } from "@/lib/stores/messages-store"
 import { useCookbookMessages } from "@/hooks/use-cookbook-messages"
+import { apiErrorMessage } from "@/lib/api"
 import { cn, formatTimestamp, getInitials } from "@/lib/utils"
 
 export function CookbookChat({ cookbookId, canComment }) {
@@ -16,12 +18,16 @@ export function CookbookChat({ cookbookId, canComment }) {
   const addMessage = useMessagesStore((s) => s.addMessage)
   const [text, setText] = useState("")
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault()
     const trimmed = text.trim()
     if (!trimmed) return
-    addMessage(cookbookId, { authorId: user.id, authorName: user.name, text: trimmed })
-    setText("")
+    try {
+      await addMessage(cookbookId, trimmed)
+      setText("")
+    } catch (error) {
+      toast.error(apiErrorMessage(error, "Impossible d'envoyer le message."))
+    }
   }
 
   return (

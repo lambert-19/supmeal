@@ -4,7 +4,11 @@ const { getCookbookRole } = require("../utils/permissions");
 const { generateToken, COOKBOOK_INVITE_TTL_MS } = require("../utils/tokens");
 const { sendCookbookInviteEmail } = require("../utils/mailer");
 
-const COOKBOOK_INCLUDE = { members: true };
+const COOKBOOK_INCLUDE = {
+  members: true,
+  owner: { select: { id: true, name: true, email: true } },
+  _count: { select: { recipes: true } },
+};
 
 async function listMine(user) {
   const cookbooks = await prisma.cookbook.findMany({
@@ -80,15 +84,15 @@ async function inviteMember(cookbookId, cookbookName, { email, role }) {
   return member;
 }
 
-async function updateMemberRole(memberId, role) {
+async function updateMemberRole(cookbookId, memberId, role) {
   const member = await prisma.cookbookMember.findUnique({ where: { id: memberId } });
-  if (!member) throw new AppError(404, "Membre introuvable.");
+  if (!member || member.cookbookId !== cookbookId) throw new AppError(404, "Membre introuvable.");
   return prisma.cookbookMember.update({ where: { id: memberId }, data: { role } });
 }
 
-async function removeMember(memberId) {
+async function removeMember(cookbookId, memberId) {
   const member = await prisma.cookbookMember.findUnique({ where: { id: memberId } });
-  if (!member) throw new AppError(404, "Membre introuvable.");
+  if (!member || member.cookbookId !== cookbookId) throw new AppError(404, "Membre introuvable.");
   await prisma.cookbookMember.delete({ where: { id: memberId } });
 }
 

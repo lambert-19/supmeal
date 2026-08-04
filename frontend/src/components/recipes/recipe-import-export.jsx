@@ -6,9 +6,9 @@ import { Download, Upload } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
-import { useAuthStore } from "@/lib/stores/auth-store"
 import { useRecipesStore } from "@/lib/stores/recipes-store"
 import { useMyRecipes } from "@/hooks/use-my-recipes"
+import { apiErrorMessage } from "@/lib/api"
 import { exportRecipesAsCsv, exportRecipesAsJson, exportRecipesAsMealie, parseImportedFile } from "@/lib/recipe-io"
 
 function download(content, filename, mimeType) {
@@ -17,7 +17,6 @@ function download(content, filename, mimeType) {
 }
 
 export function RecipeImportExport() {
-  const user = useAuthStore((s) => s.user)
   const addRecipe = useRecipesStore((s) => s.addRecipe)
   const recipes = useMyRecipes()
   const fileInputRef = useRef(null)
@@ -65,15 +64,25 @@ export function RecipeImportExport() {
     try {
       const text = await file.text()
       const { recipes: imported, errors } = parseImportedFile(text, file.name)
-      imported.forEach((data) => addRecipe(user.id, data))
 
-      if (imported.length > 0) {
-        toast.success(`${imported.length} recette${imported.length > 1 ? "s" : ""} importée${imported.length > 1 ? "s" : ""}.`)
+      let importedCount = 0
+      const failures = [...errors]
+      for (const data of imported) {
+        try {
+          await addRecipe(data)
+          importedCount++
+        } catch (error) {
+          failures.push(apiErrorMessage(error, `Échec de l'import de « ${data.title} ».`))
+        }
       }
-      if (errors.length > 0) {
-        toast.error(`${errors.length} élément(s) ignoré(s) : ${errors[0]}`)
+
+      if (importedCount > 0) {
+        toast.success(`${importedCount} recette${importedCount > 1 ? "s" : ""} importée${importedCount > 1 ? "s" : ""}.`)
       }
-      if (imported.length === 0 && errors.length === 0) {
+      if (failures.length > 0) {
+        toast.error(`${failures.length} élément(s) ignoré(s) : ${failures[0]}`)
+      }
+      if (importedCount === 0 && failures.length === 0) {
         toast.error("Aucune recette trouvée dans ce fichier.")
       }
     } catch {

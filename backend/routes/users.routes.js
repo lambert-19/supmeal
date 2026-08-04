@@ -4,10 +4,13 @@ const { body } = require("express-validator");
 const usersController = require("../controllers/users.controller");
 const validate = require("../middleware/validate");
 const requireAuth = require("../middleware/auth");
+const csrfProtection = require("../middleware/csrf");
+const { PASSWORD_RULES, PASSWORD_MESSAGE } = require("../utils/passwordPolicy");
 
 const router = Router();
 
 router.use(requireAuth);
+router.use(csrfProtection);
 
 /**
  * @swagger
@@ -64,7 +67,7 @@ router.patch(
   "/me/password",
   [
     body("currentPassword").notEmpty().withMessage("Le mot de passe actuel est requis."),
-    body("newPassword").isLength({ min: 8 }).withMessage("8 caractères minimum."),
+    body("newPassword").isStrongPassword(PASSWORD_RULES).withMessage(PASSWORD_MESSAGE),
   ],
   validate,
   usersController.changePassword

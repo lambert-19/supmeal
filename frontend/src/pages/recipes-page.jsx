@@ -9,9 +9,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { PageHeader } from "@/components/page-header"
 import { EmptyState } from "@/components/empty-state"
 import { MotionPress } from "@/components/motion-press"
+import { PageLoader } from "@/components/page-loader"
 import { RecipeCard } from "@/components/recipes/recipe-card"
 import { RecipeImportExport } from "@/components/recipes/recipe-import-export"
 import { useMyRecipes } from "@/hooks/use-my-recipes"
+import { useRecipesStore } from "@/lib/stores/recipes-store"
 import { cn } from "@/lib/utils"
 import { GRID_CONTAINER_VARIANTS, GRID_ITEM_VARIANTS } from "@/lib/motion-variants"
 
@@ -25,6 +27,7 @@ const TIME_FILTERS = [
 
 export function RecipesPage() {
   const recipes = useMyRecipes()
+  const status = useRecipesStore((s) => s.status)
   const prefersReducedMotion = useReducedMotion()
   const [searchParams, setSearchParams] = useSearchParams()
   const [timeFilter, setTimeFilter] = useState("all")
@@ -148,7 +151,9 @@ export function RecipesPage() {
         </div>
       )}
 
-      {recipes.length === 0 ? (
+      {status === "loading" ? (
+        <PageLoader />
+      ) : recipes.length === 0 ? (
         <EmptyState
           icon={UtensilsCrossed}
           title="Aucune recette pour le moment"

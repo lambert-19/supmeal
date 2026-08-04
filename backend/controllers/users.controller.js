@@ -1,5 +1,6 @@
 const usersService = require("../services/users.service");
 const { toSafeUser } = require("../utils/serializers");
+const { signToken, cookieOptions } = require("../utils/jwt");
 const asyncHandler = require("../utils/asyncHandler");
 
 const updateProfile = asyncHandler(async (req, res) => {
@@ -8,7 +9,12 @@ const updateProfile = asyncHandler(async (req, res) => {
 });
 
 const changePassword = asyncHandler(async (req, res) => {
-  await usersService.changePassword(req.user.id, req.body);
+  const user = await usersService.changePassword(req.user.id, req.body);
+  // Le changement de mot de passe incrémente tokenVersion (voir service), ce
+  // qui invaliderait aussi le cookie de la requête en cours — on le réémet
+  // donc à jour pour ne pas déconnecter l'utilisateur de sa propre action.
+  const token = signToken(user.id, user.tokenVersion);
+  res.cookie(process.env.COOKIE_NAME, token, cookieOptions());
   res.status(204).send();
 });
 

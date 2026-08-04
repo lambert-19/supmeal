@@ -103,7 +103,12 @@ async function forgotPassword(email) {
 async function resetPassword(rawToken, newPassword) {
   const token = await consumeToken(rawToken, "password_reset");
   const passwordHash = await hashPassword(newPassword);
-  await prisma.user.update({ where: { id: token.userId }, data: { passwordHash } });
+  // tokenVersion++ : invalide toute session déjà ouverte avec l'ancien mot de
+  // passe (ex. un JWT volé) dès la réinitialisation, sans attendre son expiration.
+  await prisma.user.update({
+    where: { id: token.userId },
+    data: { passwordHash, tokenVersion: { increment: 1 } },
+  });
 }
 
 module.exports = {

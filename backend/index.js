@@ -1,9 +1,12 @@
 require("dotenv").config();
 
 const app = require("./app");
+const { startTokenCleanupJob } = require("./utils/tokenCleanup");
 
 const PORT = process.env.PORT || 4000;
 
 app.listen(PORT, () => {
   console.log(`SUPMEAL backend listening on http://localhost:${PORT}`);
 });
+
+startTokenCleanupJob();

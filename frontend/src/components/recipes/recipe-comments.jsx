@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { Trash2 } from "lucide-react"
+import { toast } from "sonner"
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -7,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { useAuthStore } from "@/lib/stores/auth-store"
 import { useCommentsStore } from "@/lib/stores/comments-store"
 import { useRecipeComments } from "@/hooks/use-recipe-comments"
+import { apiErrorMessage } from "@/lib/api"
 import { formatTimestamp, getInitials } from "@/lib/utils"
 
 export function RecipeComments({ recipeId, canComment }) {
@@ -16,12 +18,24 @@ export function RecipeComments({ recipeId, canComment }) {
   const deleteComment = useCommentsStore((s) => s.deleteComment)
   const [text, setText] = useState("")
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault()
     const trimmed = text.trim()
     if (!trimmed) return
-    addComment(recipeId, { authorId: user.id, authorName: user.name, text: trimmed })
-    setText("")
+    try {
+      await addComment(recipeId, trimmed)
+      setText("")
+    } catch (error) {
+      toast.error(apiErrorMessage(error, "Impossible de publier le commentaire."))
+    }
+  }
+
+  async function handleDelete(id) {
+    try {
+      await deleteComment(id)
+    } catch (error) {
+      toast.error(apiErrorMessage(error, "Impossible de supprimer le commentaire."))
+    }
   }
 
   return (
@@ -48,7 +62,7 @@ export function RecipeComments({ recipeId, canComment }) {
                   variant="ghost"
                   size="icon-sm"
                   className="shrink-0"
-                  onClick={() => deleteComment(comment.id)}
+                  onClick={() => handleDelete(comment.id)}
                   aria-label="Supprimer le commentaire">
                   <Trash2 className="size-3.5" />
                 </Button>

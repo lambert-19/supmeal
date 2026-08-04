@@ -6,7 +6,11 @@ const asyncHandler = require("../utils/asyncHandler");
 const loadCookbookAndRole = asyncHandler(async (req, res, next) => {
   const cookbook = await prisma.cookbook.findUnique({
     where: { id: req.params.id },
-    include: { members: true },
+    include: {
+      members: true,
+      owner: { select: { id: true, name: true, email: true } },
+      _count: { select: { recipes: true } },
+    },
   });
   if (!cookbook) throw new AppError(404, "Cookbook introuvable.");
 

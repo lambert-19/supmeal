@@ -14,7 +14,12 @@ async function changePassword(userId, { currentPassword, newPassword }) {
   if (!valid) throw new AppError(400, "Mot de passe actuel incorrect.");
 
   const passwordHash = await hashPassword(newPassword);
-  await prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+  // tokenVersion++ : invalide les JWT déjà émis (autres appareils/onglets) ;
+  // le contrôleur réémet un cookie à jour pour la session courante.
+  return prisma.user.update({
+    where: { id: userId },
+    data: { passwordHash, tokenVersion: { increment: 1 } },
+  });
 }
 
 async function updatePreferences(userId, { dietaryRegime, allergies, favoriteCuisine, defaultServings }) {

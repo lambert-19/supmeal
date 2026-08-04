@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom"
 import { Controller, useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -11,6 +11,7 @@ import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { PageLoader } from "@/components/page-loader"
 import { CookbookChat } from "@/components/cookbooks/cookbook-chat"
 import {
   AlertDialog,
@@ -25,12 +26,11 @@ import {
 } from "@/components/ui/alert-dialog"
 import { FormField } from "@/components/form-field"
 import { EmptyState } from "@/components/empty-state"
-import { useAuthStore, findMockUserById } from "@/lib/stores/auth-store"
-import { useCookbooksStore } from "@/lib/stores/cookbooks-store"
+import { useAuthStore } from "@/lib/stores/auth-store"
 import { useRecipesStore } from "@/lib/stores/recipes-store"
 import { useMyRecipes } from "@/hooks/use-my-recipes"
-import { useCookbookRecipes } from "@/hooks/use-cookbook-recipes"
-import { getCookbookRole, canManageCookbook, canEditRecipes, canComment } from "@/lib/cookbook-permissions"
+import { api, apiErrorMessage } from "@/lib/api"
+import { canManageCookbook, canEditRecipes, canComment } from "@/lib/cookbook-permissions"
 import { COOKBOOK_ROLES } from "@/lib/constants/cookbook"
 import { inviteMemberSchema } from "@/lib/schemas/cookbook"
 
@@ -41,16 +41,21 @@ const ROLE_LABELS = {
 
 export function CookbookDetailPage() {
   const { id } = useParams()
+  // key={id} force un remontage complet si l'id change en restant sur la même
+  // route : état de départ frais à chaque montage plutôt qu'un reset via setState
+  // synchrone en tête d'effet (déconseillé par eslint-plugin-react-hooks).
+  return <CookbookDetailContent key={id} id={id} />
+}
+
+function CookbookDetailContent({ id }) {
   const user = useAuthStore((s) => s.user)
-  const cookbooks = useCookbooksStore((s) => s.cookbooks)
-  const deleteCookbook = useCookbooksStore((s) => s.deleteCookbook)
-  const inviteMember = useCookbooksStore((s) => s.inviteMember)
-  const updateMemberRole = useCookbooksStore((s) => s.updateMemberRole)
-  const removeMember = useCookbooksStore((s) => s.removeMember)
-  const updateRecipe = useRecipesStore((s) => s.updateRecipe)
+  const fetchRecipes = useRecipesStore((s) => s.fetchAll)
   const myRecipes = useMyRecipes()
-  const cookbookRecipes = useCookbookRecipes(id)
   const navigate = useNavigate()
+
+  const [cookbook, setCookbook] = useState(null)
+  const [cookbookRecipes, setCookbookRecipes] = useState([])
+  const [status, setStatus] = useState("loading") // loading | loaded | not-found
 
   const [query, setQuery] = useState("")
   const [pendingAdd, setPendingAdd] = useState("")
@@ -66,10 +71,34 @@ export function CookbookDetailPage() {
     defaultValues: { email: "", role: "editor" },
   })
 
-  const cookbook = cookbooks.find((c) => c.id === id)
-  const role = cookbook ? getCookbookRole(cookbook, user) : null
+  // Réutilisé après chaque mutation (invitation, rôle, retrait de membre/recette)
+  // pour rafraîchir le cookbook depuis le serveur plutôt que de recalculer l'état
+  // localement — dans un gestionnaire d'event, pas dans un effet.
+  async function loadCookbook() {
+    const [{ data: cookbookData }, { data: recipesData }] = await Promise.all([
+      api.get(`/cookbooks/${id}`),
+      api.get(`/cookbooks/${id}/recipes`),
+    ])
+    setCookbook(cookbookData)
+    setCookbookRecipes(recipesData)
+  }
 
-  const owner = useMemo(() => (cookbook ? findMockUserById(cookbook.ownerId) : null), [cookbook?.ownerId])
+  useEffect(() => {
+    let cancelled = false
+    Promise.all([api.get(`/cookbooks/${id}`), api.get(`/cookbooks/${id}/recipes`)])
+      .then(([{ data: cookbookData }, { data: recipesData }]) => {
+        if (cancelled) return
+        setCookbook(cookbookData)
+        setCookbookRecipes(recipesData)
+        setStatus("loaded")
+      })
+      .catch(() => {
+        if (!cancelled) setStatus("not-found")
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [id])
 
   const filteredRecipes = useMemo(() => {
     const normalized = query.trim().toLowerCase()
@@ -84,45 +113,84 @@ export function CookbookDetailPage() {
 
   const unassignedRecipes = useMemo(() => myRecipes.filter((recipe) => !recipe.cookbookId), [myRecipes])
 
-  if (!cookbook || !role) return <Navigate to="/cookbooks" replace />
+  if (status === "loading") return <PageLoader />
+  if (status === "not-found") return <Navigate to="/cookbooks" replace />
 
+  const role = cookbook.role
   const isCreator = canManageCookbook(role)
   const canEdit = canEditRecipes(role)
   const allMembers = [
-    { userId: cookbook.ownerId, email: owner?.email ?? "", name: owner?.name ?? "Créateur", role: "creator" },
+    { id: `owner-${cookbook.owner.id}`, userId: cookbook.owner.id, email: cookbook.owner.email, name: cookbook.owner.name, role: "creator", pending: false },
     ...cookbook.members,
   ]
 
-  function handleDelete() {
-    deleteCookbook(cookbook.id)
-    toast.success("Cookbook supprimé.")
-    navigate("/cookbooks", { replace: true })
+  async function handleDelete() {
+    try {
+      await api.delete(`/cookbooks/${cookbook.id}`)
+      toast.success("Cookbook supprimé.")
+      navigate("/cookbooks", { replace: true })
+    } catch (error) {
+      toast.error(apiErrorMessage(error, "Impossible de supprimer le cookbook."))
+    }
   }
 
-  function onInvite(values) {
+  async function onInvite(values) {
     const normalizedEmail = values.email.trim().toLowerCase()
     if (normalizedEmail === user.email.toLowerCase()) {
       toast.error("Vous êtes déjà le créateur de ce cookbook.")
       return
     }
-    const member = inviteMember(cookbook.id, { ...values, email: normalizedEmail })
-    toast.success(
-      member.userId
-        ? `${member.name} a été ajouté au cookbook.`
-        : `Invitation enregistrée pour ${normalizedEmail} (accès dès la création de son compte).`
-    )
-    reset({ email: "", role: "editor" })
+    try {
+      const { data: member } = await api.post(`/cookbooks/${cookbook.id}/members`, { ...values, email: normalizedEmail })
+      await loadCookbook()
+      toast.success(
+        member.pending
+          ? `Invitation enregistrée pour ${normalizedEmail} (accès dès la création de son compte).`
+          : `${member.name} a été ajouté au cookbook.`
+      )
+      reset({ email: "", role: "editor" })
+    } catch (error) {
+      toast.error(apiErrorMessage(error, "Impossible d'inviter ce membre."))
+    }
   }
 
-  function handleAddRecipe(recipeId) {
-    updateRecipe(recipeId, { cookbookId: cookbook.id })
-    toast.success("Recette ajoutée au cookbook.")
-    setPendingAdd("")
+  async function handleUpdateMemberRole(memberId, newRole) {
+    try {
+      await api.patch(`/cookbooks/${cookbook.id}/members/${memberId}`, { role: newRole })
+      await loadCookbook()
+    } catch (error) {
+      toast.error(apiErrorMessage(error, "Impossible de modifier le rôle."))
+    }
   }
 
-  function handleRemoveRecipe(recipeId) {
-    updateRecipe(recipeId, { cookbookId: null })
-    toast.success("Recette retirée du cookbook.")
+  async function handleRemoveMember(memberId) {
+    try {
+      await api.delete(`/cookbooks/${cookbook.id}/members/${memberId}`)
+      await loadCookbook()
+    } catch (error) {
+      toast.error(apiErrorMessage(error, "Impossible de retirer ce membre."))
+    }
+  }
+
+  async function handleAddRecipe(recipeId) {
+    try {
+      await api.post(`/cookbooks/${cookbook.id}/recipes/${recipeId}`)
+      await Promise.all([loadCookbook(), fetchRecipes()])
+      toast.success("Recette ajoutée au cookbook.")
+      setPendingAdd("")
+    } catch (error) {
+      toast.error(apiErrorMessage(error, "Impossible d'ajouter cette recette."))
+    }
+  }
+
+  async function handleRemoveRecipe(recipeId) {
+    try {
+      await api.delete(`/cookbooks/${cookbook.id}/recipes/${recipeId}`)
+      await Promise.all([loadCookbook(), fetchRecipes()])
+      toast.success("Recette retirée du cookbook.")
+    } catch (error) {
+      toast.error(apiErrorMessage(error, "Impossible de retirer cette recette."))
+    }
   }
 
   return (
@@ -190,7 +258,7 @@ export function CookbookDetailPage() {
             const isOwnerRow = member.role === "creator"
             return (
               <div
-                key={member.email || member.userId}
+                key={member.id}
                 className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-3">
                 <div>
                   <p className="text-sm font-medium">
@@ -199,7 +267,7 @@ export function CookbookDetailPage() {
                   </p>
                   <div className="flex items-center gap-1.5">
                     {member.email && <p className="text-xs text-muted-foreground">{member.email}</p>}
-                    {!isOwnerRow && !member.userId && (
+                    {member.pending && (
                       <Badge variant="outline" className="h-4 px-1.5 text-[10px]">
                         En attente
                       </Badge>
@@ -209,7 +277,7 @@ export function CookbookDetailPage() {
 
                 <div className="flex items-center gap-2">
                   {isCreator && !isOwnerRow ? (
-                    <Select value={member.role} onValueChange={(value) => updateMemberRole(cookbook.id, member.email, value)}>
+                    <Select value={member.role} onValueChange={(value) => handleUpdateMemberRole(member.id, value)}>
                       <SelectTrigger size="sm" className="w-36">
                         <SelectValue>
                           {(value) => COOKBOOK_ROLES.find((option) => option.value === value)?.label}
@@ -231,7 +299,7 @@ export function CookbookDetailPage() {
                       type="button"
                       variant="ghost"
                       size="icon"
-                      onClick={() => removeMember(cookbook.id, member.email)}
+                      onClick={() => handleRemoveMember(member.id)}
                       aria-label={`Retirer ${member.name}`}>
                       <X className="size-4" />
                     </Button>

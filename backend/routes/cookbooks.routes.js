@@ -4,11 +4,13 @@ const { body } = require("express-validator");
 const cookbooksController = require("../controllers/cookbooks.controller");
 const validate = require("../middleware/validate");
 const requireAuth = require("../middleware/auth");
+const csrfProtection = require("../middleware/csrf");
 const loadCookbookAndRole = require("../middleware/loadCookbook");
 
 const router = Router();
 
 router.use(requireAuth);
+router.use(csrfProtection);
 
 const cookbookValidation = [
   body("name").trim().isLength({ min: 2 }).withMessage("Le nom doit contenir au moins 2 caractères."),

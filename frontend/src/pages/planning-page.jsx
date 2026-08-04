@@ -6,12 +6,15 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
+import { toast } from "sonner"
+
 import { PageHeader } from "@/components/page-header"
 import { EmptyState } from "@/components/empty-state"
-import { useAuthStore } from "@/lib/stores/auth-store"
+import { PageLoader } from "@/components/page-loader"
 import { usePlanningStore } from "@/lib/stores/planning-store"
 import { useMyPlanning } from "@/hooks/use-my-planning"
 import { useMyRecipes } from "@/hooks/use-my-recipes"
+import { apiErrorMessage } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import {
   MEAL_SLOTS,
@@ -33,10 +36,9 @@ const MEAL_SLOT_ICONS = {
 }
 
 export function PlanningPage() {
-  const user = useAuthStore((s) => s.user)
   const setEntry = usePlanningStore((s) => s.setEntry)
   const removeEntry = usePlanningStore((s) => s.removeEntry)
-  const entries = useMyPlanning()
+  const status = usePlanningStore((s) => s.status)
   const myRecipes = useMyRecipes()
   const [weekOffset, setWeekOffset] = useState(0)
 
@@ -45,6 +47,9 @@ export function PlanningPage() {
   const weekStart = useMemo(() => addDays(startOfWeek(new Date()), weekOffset * 7), [weekOffset])
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart])
   const weekDates = useMemo(() => new Set(days.map(toISODate)), [days])
+  const weekStartISO = toISODate(weekStart)
+  const weekEndISO = toISODate(addDays(weekStart, 6))
+  const entries = useMyPlanning(weekStartISO, weekEndISO)
 
   const entriesByKey = useMemo(() => {
     const map = new Map()
@@ -72,6 +77,22 @@ export function PlanningPage() {
     })
     return Array.from(aggregated.values()).sort((a, b) => a.name.localeCompare(b.name))
   }, [weekEntries, recipesById])
+
+  async function handleSetEntry(date, mealSlot, recipeId) {
+    try {
+      await setEntry({ date, mealSlot, recipeId })
+    } catch (error) {
+      toast.error(apiErrorMessage(error, "Impossible de planifier cette recette."))
+    }
+  }
+
+  async function handleRemoveEntry(id) {
+    try {
+      await removeEntry(id)
+    } catch (error) {
+      toast.error(apiErrorMessage(error, "Impossible de retirer cette entrée."))
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -129,7 +150,9 @@ export function PlanningPage() {
         </Button>
       </div>
 
-      {myRecipes.length === 0 ? (
+      {status === "loading" ? (
+        <PageLoader />
+      ) : myRecipes.length === 0 ? (
         <EmptyState
           icon={CalendarDays}
           title="Aucune recette à planifier"
@@ -181,7 +204,7 @@ export function PlanningPage() {
                               variant="ghost"
                               size="icon-sm"
                               className="shrink-0"
-                              onClick={() => removeEntry(entry.id)}
+                              onClick={() => handleRemoveEntry(entry.id)}
                               aria-label={`Retirer ${recipe.title} du ${slot.label.toLowerCase()}`}>
                               <X className="size-3" />
                             </Button>
@@ -189,9 +212,7 @@ export function PlanningPage() {
                         ) : (
                           <Select
                             value=""
-                            onValueChange={(recipeId) =>
-                              setEntry(user.id, { date: dateISO, mealSlot: slot.value, recipeId })
-                            }>
+                            onValueChange={(recipeId) => handleSetEntry(dateISO, slot.value, recipeId)}>
                             <SelectTrigger className="w-full">
                               <SelectValue placeholder="Ajouter une recette" />
                             </SelectTrigger>

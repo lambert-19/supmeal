@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/page-header"
 import { RecipeForm } from "@/components/recipes/recipe-form"
 import { useAuthStore } from "@/lib/stores/auth-store"
 import { useRecipesStore } from "@/lib/stores/recipes-store"
+import { apiErrorMessage } from "@/lib/api"
 
 export function NewRecipePage() {
   const user = useAuthStore((s) => s.user)
@@ -23,10 +24,14 @@ export function NewRecipePage() {
     source: "",
   }
 
-  function onSubmit(values) {
-    const recipe = addRecipe(user.id, values)
-    toast.success("Recette créée.")
-    navigate(`/recipes/${recipe.id}`, { replace: true })
+  async function onSubmit(values) {
+    try {
+      const recipe = await addRecipe(values)
+      toast.success("Recette créée.")
+      navigate(`/recipes/${recipe.id}`, { replace: true })
+    } catch (error) {
+      toast.error(apiErrorMessage(error, "Impossible de créer la recette."))
+    }
   }
 
   return (

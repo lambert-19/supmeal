@@ -1,10 +1,14 @@
-import { useMemo } from "react"
+import { useEffect } from "react"
 
-import { useAuthStore } from "@/lib/stores/auth-store"
 import { usePlanningStore } from "@/lib/stores/planning-store"
 
-export function useMyPlanning() {
-  const userId = useAuthStore((s) => s.user?.id)
+export function useMyPlanning(from, to) {
   const entries = usePlanningStore((s) => s.entries)
-  return useMemo(() => entries.filter((entry) => entry.ownerId === userId), [entries, userId])
+  const fetchRange = usePlanningStore((s) => s.fetchRange)
+
+  useEffect(() => {
+    fetchRange(from, to)
+  }, [from, to, fetchRange])
+
+  return entries
 }

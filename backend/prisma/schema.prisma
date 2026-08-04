@@ -30,6 +30,7 @@ model User {
   name            String
   email           String          @unique
   passwordHash    String
+  tokenVersion    Int       @default(0) // incrémenté au changement de mot de passe : invalide tous les JWT déjà émis
   emailVerified   Boolean   @default(false)
   dietaryRegime   String    @default("none")
   allergies       String[]  @default([])

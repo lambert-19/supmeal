@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { FormField } from "@/components/form-field"
 import { useAuthStore } from "@/lib/stores/auth-store"
+import { apiErrorMessage } from "@/lib/api"
 import { passwordSchema } from "@/lib/schemas/settings"
 
 export function SecurityTab() {
@@ -29,8 +30,8 @@ export function SecurityTab() {
       await changePassword(values)
       toast.success("Mot de passe mis à jour.")
       reset()
-    } catch {
-      setFormError("Le mot de passe actuel est incorrect.")
+    } catch (error) {
+      setFormError(apiErrorMessage(error, "Le mot de passe actuel est incorrect."))
     }
   }
 

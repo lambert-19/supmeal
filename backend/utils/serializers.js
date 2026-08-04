@@ -37,6 +37,7 @@ function toRecipeDTO(recipe) {
     source: recipe.source,
     favorite: recipe.favorite,
     cookbookId: recipe.cookbookId,
+    cookbook: recipe.cookbook ? { id: recipe.cookbook.id, name: recipe.cookbook.name } : null,
     createdAt: recipe.createdAt,
     updatedAt: recipe.updatedAt,
   };
@@ -55,7 +56,13 @@ function toCookbookMemberDTO(member) {
 }
 
 function toCookbookDTO(cookbook) {
-  return { ...cookbook, members: cookbook.members.map(toCookbookMemberDTO) };
+  const { _count, ...rest } = cookbook;
+  return {
+    ...rest,
+    members: cookbook.members.map(toCookbookMemberDTO),
+    owner: cookbook.owner ? { id: cookbook.owner.id, name: cookbook.owner.name, email: cookbook.owner.email } : undefined,
+    recipesCount: _count?.recipes ?? 0,
+  };
 }
 
 function toCommentDTO(comment) {

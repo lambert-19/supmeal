@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { Controller, useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { toast } from "sonner"
@@ -9,12 +10,14 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { FormField } from "@/components/form-field"
 import { useAuthStore } from "@/lib/stores/auth-store"
+import { apiErrorMessage } from "@/lib/api"
 import { preferencesSchema } from "@/lib/schemas/settings"
 import { CUISINES, DIETARY_REGIMES, ALLERGENS } from "@/lib/constants/preferences"
 
 export function PreferencesTab() {
   const user = useAuthStore((s) => s.user)
   const updatePreferences = useAuthStore((s) => s.updatePreferences)
+  const [formError, setFormError] = useState(null)
 
   const {
     control,
@@ -27,8 +30,13 @@ export function PreferencesTab() {
   })
 
   async function onSubmit(values) {
-    await updatePreferences(values)
-    toast.success("Préférences culinaires mises à jour.")
+    setFormError(null)
+    try {
+      await updatePreferences(values)
+      toast.success("Préférences culinaires mises à jour.")
+    } catch (error) {
+      setFormError(apiErrorMessage(error, "Impossible de mettre à jour les préférences."))
+    }
   }
 
   return (
@@ -125,6 +133,12 @@ export function PreferencesTab() {
           )}
         />
       </div>
+
+      {formError && (
+        <p className="text-sm text-destructive" role="alert">
+          {formError}
+        </p>
+      )}
 
       <Button type="submit" disabled={isSubmitting}>
         {isSubmitting ? "Enregistrement..." : "Enregistrer les préférences"}

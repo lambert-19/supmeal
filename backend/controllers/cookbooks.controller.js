@@ -77,14 +77,14 @@ const inviteMember = asyncHandler(async (req, res) => {
 const updateMemberRole = asyncHandler(async (req, res) => {
   requireRole(req);
   if (!canManageCookbook(req.role)) throw new AppError(403, "Réservé au créateur du cookbook.");
-  const member = await cookbooksService.updateMemberRole(req.params.memberId, req.body.role);
+  const member = await cookbooksService.updateMemberRole(req.params.id, req.params.memberId, req.body.role);
   res.json(toCookbookMemberDTO(member));
 });
 
 const removeMember = asyncHandler(async (req, res) => {
   requireRole(req);
   if (!canManageCookbook(req.role)) throw new AppError(403, "Réservé au créateur du cookbook.");
-  await cookbooksService.removeMember(req.params.memberId);
+  await cookbooksService.removeMember(req.params.id, req.params.memberId);
   res.status(204).send();
 });
 

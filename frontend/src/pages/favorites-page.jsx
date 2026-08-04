@@ -5,11 +5,14 @@ import { Heart, UtensilsCrossed } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { PageHeader } from "@/components/page-header"
 import { EmptyState } from "@/components/empty-state"
+import { PageLoader } from "@/components/page-loader"
 import { RecipeCard } from "@/components/recipes/recipe-card"
 import { useMyRecipes } from "@/hooks/use-my-recipes"
+import { useRecipesStore } from "@/lib/stores/recipes-store"
 
 export function FavoritesPage() {
   const recipes = useMyRecipes()
+  const status = useRecipesStore((s) => s.status)
   const favoriteRecipes = useMemo(() => recipes.filter((recipe) => recipe.favorite), [recipes])
 
   return (
@@ -19,7 +22,9 @@ export function FavoritesPage() {
         description="Retrouvez rapidement les recettes que vous avez marquées comme favorites."
       />
 
-      {favoriteRecipes.length === 0 ? (
+      {status === "loading" ? (
+        <PageLoader />
+      ) : favoriteRecipes.length === 0 ? (
         <EmptyState
           icon={Heart}
           title="Aucun favori pour le moment"

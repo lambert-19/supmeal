@@ -5,12 +5,15 @@ import { Plus, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { PageHeader } from "@/components/page-header"
 import { EmptyState } from "@/components/empty-state"
+import { PageLoader } from "@/components/page-loader"
 import { CookbookCard } from "@/components/cookbooks/cookbook-card"
 import { useMyCookbooks } from "@/hooks/use-my-cookbooks"
+import { useCookbooksStore } from "@/lib/stores/cookbooks-store"
 import { GRID_CONTAINER_VARIANTS, GRID_ITEM_VARIANTS } from "@/lib/motion-variants"
 
 export function CookbooksPage() {
   const cookbooks = useMyCookbooks()
+  const status = useCookbooksStore((s) => s.status)
   const prefersReducedMotion = useReducedMotion()
 
   return (
@@ -26,7 +29,9 @@ export function CookbooksPage() {
         }
       />
 
-      {cookbooks.length === 0 ? (
+      {status === "loading" ? (
+        <PageLoader />
+      ) : cookbooks.length === 0 ? (
         <EmptyState
           icon={Users}
           title="Aucun cookbook pour le moment"

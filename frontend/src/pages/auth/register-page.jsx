@@ -1,22 +1,25 @@
 import { useState } from "react"
-import { Link, useNavigate } from "react-router-dom"
+import { Link, useSearchParams } from "react-router-dom"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { motion, useReducedMotion } from "framer-motion"
-import { toast } from "sonner"
+import { MailCheck } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { FormField } from "@/components/form-field"
 import { MotionPress } from "@/components/motion-press"
 import { useAuthStore } from "@/lib/stores/auth-store"
+import { apiErrorMessage } from "@/lib/api"
 import { registerSchema } from "@/lib/schemas/auth"
 import { FORM_STAGGER_CONTAINER_VARIANTS, FORM_STAGGER_ITEM_VARIANTS } from "@/lib/motion-variants"
 
 export function RegisterPage() {
   const registerUser = useAuthStore((s) => s.register)
-  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const inviteToken = searchParams.get("inviteToken") ?? undefined
   const [authError, setAuthError] = useState(null)
+  const [registered, setRegistered] = useState(false)
   const prefersReducedMotion = useReducedMotion()
 
   const {
@@ -31,12 +34,39 @@ export function RegisterPage() {
   async function onSubmit(values) {
     setAuthError(null)
     try {
-      await registerUser(values)
-      toast.success("Compte créé, bienvenue sur SUPMEAL !")
-      navigate("/recipes", { replace: true })
-    } catch {
-      setAuthError("Un compte existe déjà avec cet email.")
+      await registerUser({ ...values, inviteToken })
+      setRegistered(true)
+    } catch (error) {
+      setAuthError(apiErrorMessage(error, "Un compte existe déjà avec cet email."))
     }
+  }
+
+  if (registered) {
+    return (
+      <motion.div
+        variants={prefersReducedMotion ? undefined : FORM_STAGGER_CONTAINER_VARIANTS}
+        initial={prefersReducedMotion ? undefined : "hidden"}
+        animate={prefersReducedMotion ? undefined : "show"}
+        className="space-y-6">
+        <motion.div
+          variants={prefersReducedMotion ? undefined : FORM_STAGGER_ITEM_VARIANTS}
+          className="flex flex-col items-center gap-3 text-center">
+          <div className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <MailCheck className="size-6" />
+          </div>
+          <h1 className="font-heading text-2xl font-semibold">Vérifiez votre boîte mail</h1>
+          <p className="text-sm text-muted-foreground">
+            Un lien de vérification vous a été envoyé. Cliquez dessus pour activer votre compte, puis
+            connectez-vous.
+          </p>
+        </motion.div>
+        <motion.div variants={prefersReducedMotion ? undefined : FORM_STAGGER_ITEM_VARIANTS}>
+          <Button className="w-full" render={<Link to="/login" />}>
+            Aller à la connexion
+          </Button>
+        </motion.div>
+      </motion.div>
+    )
   }
 
   return (

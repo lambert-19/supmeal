@@ -1,30 +1,34 @@
 import { create } from "zustand"
-import { persist } from "zustand/middleware"
 
-import { createId } from "@/lib/stores/store-utils"
+import { api, apiErrorMessage } from "@/lib/api"
 
-export const useCommentsStore = create(
-  persist(
-    (set) => ({
-      comments: [],
+// Un seul jeu de commentaires en mémoire à la fois (ceux de la recette
+// actuellement affichée) — remplacé intégralement à chaque fetch, pas de cache
+// multi-recettes à gérer.
+export const useCommentsStore = create((set) => ({
+  comments: [],
+  recipeId: null,
+  status: "idle", // idle | loading | loaded | error
+  error: null,
 
-      addComment(recipeId, { authorId, authorName, text }) {
-        const comment = {
-          id: createId("comment"),
-          recipeId,
-          authorId,
-          authorName,
-          text,
-          createdAt: Date.now(),
-        }
-        set((state) => ({ comments: [...state.comments, comment] }))
-        return comment
-      },
+  async fetchByRecipe(recipeId) {
+    set({ status: "loading", error: null, recipeId })
+    try {
+      const { data } = await api.get(`/recipes/${recipeId}/comments`)
+      set({ comments: data, status: "loaded" })
+    } catch (error) {
+      set({ status: "error", error: apiErrorMessage(error, "Impossible de charger les commentaires.") })
+    }
+  },
 
-      deleteComment(id) {
-        set((state) => ({ comments: state.comments.filter((comment) => comment.id !== id) }))
-      },
-    }),
-    { name: "supmeal-comments" }
-  )
-)
+  async addComment(recipeId, text) {
+    const { data } = await api.post(`/recipes/${recipeId}/comments`, { text })
+    set((state) => ({ comments: [...state.comments, data] }))
+    return data
+  },
+
+  async deleteComment(id) {
+    await api.delete(`/comments/${id}`)
+    set((state) => ({ comments: state.comments.filter((c) => c.id !== id) }))
+  },
+}))

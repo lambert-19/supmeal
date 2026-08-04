@@ -101,6 +101,11 @@ const definition = {
               ownerId: { type: "string" },
               favorite: { type: "boolean" },
               cookbookId: { type: "string", nullable: true },
+              cookbook: {
+                type: "object",
+                nullable: true,
+                properties: { id: { type: "string" }, name: { type: "string" } },
+              },
               createdAt: { type: "string", format: "date-time" },
               updatedAt: { type: "string", format: "date-time" },
             },
@@ -125,6 +130,11 @@ const definition = {
           id: { type: "string" },
           name: { type: "string" },
           ownerId: { type: "string" },
+          owner: {
+            type: "object",
+            properties: { id: { type: "string" }, name: { type: "string" }, email: { type: "string", format: "email" } },
+          },
+          recipesCount: { type: "integer", description: "Nombre de recettes rattachées au cookbook (tous membres confondus)." },
           createdAt: { type: "string", format: "date-time" },
           updatedAt: { type: "string", format: "date-time" },
           members: { type: "array", items: { $ref: "#/components/schemas/CookbookMember" } },

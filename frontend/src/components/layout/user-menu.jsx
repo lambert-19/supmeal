@@ -19,8 +19,8 @@ export function UserMenu() {
 
   if (!user) return null
 
-  function handleLogout() {
-    logout()
+  async function handleLogout() {
+    await logout()
     navigate("/login", { replace: true })
   }
 

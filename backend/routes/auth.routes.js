@@ -4,6 +4,8 @@ const { body } = require("express-validator");
 const authController = require("../controllers/auth.controller");
 const validate = require("../middleware/validate");
 const requireAuth = require("../middleware/auth");
+const { loginLimiter, authActionLimiter } = require("../middleware/rateLimit");
+const { PASSWORD_RULES, PASSWORD_MESSAGE } = require("../utils/passwordPolicy");
 
 const router = Router();
 
@@ -46,10 +48,11 @@ const router = Router();
  */
 router.post(
   "/register",
+  authActionLimiter,
   [
     body("name").trim().isLength({ min: 2 }).withMessage("Le nom doit contenir au moins 2 caractères."),
     body("email").trim().isEmail().withMessage("Adresse email invalide."),
-    body("password").isLength({ min: 8 }).withMessage("8 caractères minimum."),
+    body("password").isStrongPassword(PASSWORD_RULES).withMessage(PASSWORD_MESSAGE),
     body("inviteToken").optional().isString(),
   ],
   validate,
@@ -85,6 +88,7 @@ router.post(
  */
 router.post(
   "/login",
+  loginLimiter,
   [
     body("email").trim().isEmail().withMessage("Adresse email invalide."),
     body("password").notEmpty().withMessage("Le mot de passe est requis."),
@@ -173,6 +177,7 @@ router.post(
  */
 router.post(
   "/resend-verification",
+  authActionLimiter,
   [body("email").trim().isEmail().withMessage("Adresse email invalide.")],
   validate,
   authController.resendVerification
@@ -202,6 +207,7 @@ router.post(
  */
 router.post(
   "/forgot-password",
+  authActionLimiter,
   [body("email").trim().isEmail().withMessage("Adresse email invalide.")],
   validate,
   authController.forgotPassword
@@ -233,9 +239,10 @@ router.post(
  */
 router.post(
   "/reset-password",
+  authActionLimiter,
   [
     body("token").isString().notEmpty().withMessage("Token requis."),
-    body("newPassword").isLength({ min: 8 }).withMessage("8 caractères minimum."),
+    body("newPassword").isStrongPassword(PASSWORD_RULES).withMessage(PASSWORD_MESSAGE),
   ],
   validate,
   authController.resetPassword

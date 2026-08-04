@@ -1,5 +1,5 @@
 const authService = require("../services/auth.service");
-const { signToken, cookieOptions } = require("../utils/jwt");
+const { signToken, cookieOptions, csrfCookieOptions, generateCsrfToken, CSRF_COOKIE_NAME } = require("../utils/jwt");
 const { toSafeUser } = require("../utils/serializers");
 const asyncHandler = require("../utils/asyncHandler");
 
@@ -10,18 +10,26 @@ const register = asyncHandler(async (req, res) => {
 
 const login = asyncHandler(async (req, res) => {
   const user = await authService.login(req.body);
-  const token = signToken(user.id);
+  const token = signToken(user.id, user.tokenVersion);
   res.cookie(process.env.COOKIE_NAME, token, cookieOptions());
+  res.cookie(CSRF_COOKIE_NAME, generateCsrfToken(), csrfCookieOptions());
   res.json(toSafeUser(user));
 });
 
 const logout = asyncHandler(async (req, res) => {
   res.clearCookie(process.env.COOKIE_NAME, { ...cookieOptions(), maxAge: undefined });
+  res.clearCookie(CSRF_COOKIE_NAME, { ...csrfCookieOptions(), maxAge: undefined });
   res.status(204).send();
 });
 
 const me = asyncHandler(async (req, res) => {
   const user = await authService.getById(req.user.id);
+  // Migration en douceur : une session déjà active avant l'ajout du CSRF
+  // n'a pas encore ce cookie — on le pose ici plutôt que de forcer une
+  // reconnexion.
+  if (!req.cookies[CSRF_COOKIE_NAME]) {
+    res.cookie(CSRF_COOKIE_NAME, generateCsrfToken(), csrfCookieOptions());
+  }
   res.json(toSafeUser(user));
 });
 

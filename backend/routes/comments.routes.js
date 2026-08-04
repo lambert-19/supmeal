@@ -4,10 +4,12 @@ const { body } = require("express-validator");
 const commentsController = require("../controllers/comments.controller");
 const validate = require("../middleware/validate");
 const requireAuth = require("../middleware/auth");
+const csrfProtection = require("../middleware/csrf");
 
 const router = Router();
 
 router.use(requireAuth);
+router.use(csrfProtection);
 
 /**
  * @swagger

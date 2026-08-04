@@ -13,6 +13,7 @@ import { MotionPress } from "@/components/motion-press"
 import { GoogleIcon } from "@/components/icons/google-icon"
 import { GithubIcon } from "@/components/icons/github-icon"
 import { useAuthStore } from "@/lib/stores/auth-store"
+import { apiErrorMessage } from "@/lib/api"
 import { loginSchema } from "@/lib/schemas/auth"
 import { FORM_STAGGER_CONTAINER_VARIANTS, FORM_STAGGER_ITEM_VARIANTS } from "@/lib/motion-variants"
 
@@ -42,8 +43,8 @@ export function LoginPage() {
       await login(values)
       toast.success("Content de vous revoir !")
       navigate(location.state?.from?.pathname ?? "/recipes", { replace: true })
-    } catch {
-      setAuthError("Email ou mot de passe incorrect.")
+    } catch (error) {
+      setAuthError(apiErrorMessage(error, "Email ou mot de passe incorrect."))
     }
   }
 
@@ -126,13 +127,6 @@ export function LoginPage() {
           </Button>
         </MotionPress>
       </motion.form>
-
-      <motion.p
-        variants={prefersReducedMotion ? undefined : FORM_STAGGER_ITEM_VARIANTS}
-        className="text-center text-xs text-muted-foreground">
-        Compte de démonstration : <span className="font-medium">demo@supmeal.fr</span> /{" "}
-        <span className="font-medium">supmeal123</span>
-      </motion.p>
 
       <motion.p
         variants={prefersReducedMotion ? undefined : FORM_STAGGER_ITEM_VARIANTS}

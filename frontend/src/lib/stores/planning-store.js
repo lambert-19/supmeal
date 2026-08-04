@@ -1,34 +1,35 @@
 import { create } from "zustand"
-import { persist } from "zustand/middleware"
 
-import { createId } from "@/lib/stores/store-utils"
+import { api, apiErrorMessage } from "@/lib/api"
 
-export const usePlanningStore = create(
-  persist(
-    (set) => ({
-      entries: [],
+export const usePlanningStore = create((set) => ({
+  entries: [],
+  status: "idle", // idle | loading | loaded | error
+  error: null,
 
-      setEntry(ownerId, { date, mealSlot, recipeId }) {
-        set((state) => {
-          const existingIndex = state.entries.findIndex(
-            (entry) => entry.ownerId === ownerId && entry.date === date && entry.mealSlot === mealSlot
-          )
-          const entry = {
-            id: existingIndex === -1 ? createId("planning") : state.entries[existingIndex].id,
-            ownerId,
-            date,
-            mealSlot,
-            recipeId,
-          }
-          if (existingIndex === -1) return { entries: [...state.entries, entry] }
-          return { entries: state.entries.map((e, i) => (i === existingIndex ? entry : e)) }
-        })
-      },
+  async fetchRange(from, to) {
+    set({ status: "loading", error: null })
+    try {
+      const { data } = await api.get("/planning", { params: { from, to } })
+      set({ entries: data, status: "loaded" })
+    } catch (error) {
+      set({ status: "error", error: apiErrorMessage(error, "Impossible de charger le planning.") })
+    }
+  },
 
-      removeEntry(id) {
-        set((state) => ({ entries: state.entries.filter((entry) => entry.id !== id) }))
-      },
-    }),
-    { name: "supmeal-planning" }
-  )
-)
+  async setEntry(payload) {
+    const { data } = await api.put("/planning", payload)
+    set((state) => ({
+      entries: [
+        ...state.entries.filter((entry) => !(entry.date === data.date && entry.mealSlot === data.mealSlot)),
+        data,
+      ],
+    }))
+    return data
+  },
+
+  async removeEntry(id) {
+    await api.delete(`/planning/${id}`)
+    set((state) => ({ entries: state.entries.filter((entry) => entry.id !== id) }))
+  },
+}))

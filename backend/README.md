@@ -8,8 +8,9 @@ API REST du backend SUPMEAL. Node.js + Express 5 + Prisma + PostgreSQL, authenti
 - **Prisma + PostgreSQL** pour la persistance (`prisma/schema.prisma`)
 - **JWT** (`jsonwebtoken`) transmis via un **cookie httpOnly** (pas de token en `localStorage` côté client — protège contre le vol de token par XSS), `cookie-parser` pour le lire
 - **bcryptjs** pour le hash des mots de passe
-- **express-validator** pour la validation des requêtes
-- **helmet**, **cors** (avec `credentials: true`) pour la sécurité de base
+- **express-validator** pour la validation des requêtes (y compris une politique de robustesse sur les mots de passe, voir section Sécurité)
+- **express-rate-limit** pour limiter les tentatives sur les endpoints d'authentification sensibles
+- **helmet**, **cors** (avec `credentials: true`) pour la sécurité de base, protection **CSRF** en double-submit cookie sur toutes les routes authentifiées mutantes
 - **morgan** pour les logs de requêtes en dev
 - **nodemailer** pour l'envoi des emails de vérification/réinitialisation (voir section dédiée ci-dessous)
 - **swagger-jsdoc + swagger-ui-express** pour la documentation interactive de l'API (voir section dédiée ci-dessous)
@@ -106,6 +107,16 @@ Les réponses API sur les cookbooks/membres passent systématiquement par `toCoo
 - Durées de validité : **24h** pour la vérification d'email, **1h** pour la réinitialisation de mot de passe (plus court car ce token permet de changer le mot de passe, action plus sensible).
 - `POST /auth/resend-verification` et `POST /auth/forgot-password` renvoient toujours une réponse **générique identique**, que l'email corresponde à un compte ou non — évite qu'un attaquant énumère les comptes existants via ces endpoints.
 - Sans configuration SMTP (`SMTP_HOST` absent), `utils/mailer.js` ne part pas réellement : le lien est loggé dans la console du serveur (`[mailer] SMTP non configuré...`), pratique pour tester en local sans compte mail.
+- **Nettoyage automatique** (`utils/tokenCleanup.js`) : une tâche démarrée avec le serveur (exécutée immédiatement puis toutes les heures) supprime les `VerificationToken` expirés (email de vérification / reset jamais utilisés) et vide les champs `inviteTokenHash`/`inviteTokenExpiresAt` des invitations de cookbook expirées (la ligne `CookbookMember` elle-même est conservée, seul le jeton est purgé). Un token expiré est déjà rejeté fonctionnellement par `consumeToken`/`consumeCookbookInvite` avant ce nettoyage — il s'agit d'hygiène des données, pas d'une protection supplémentaire.
+
+## Sécurité
+
+- **Rate limiting** (`middleware/rateLimit.js`, basé sur `express-rate-limit`) : `POST /auth/login` limité à 10 tentatives / 15 min / IP (429 au-delà) ; `POST /auth/register`, `/auth/resend-verification`, `/auth/forgot-password`, `/auth/reset-password` limités de la même façon (protège contre le brute force sur le mot de passe et le spam d'envoi d'emails).
+- **Mots de passe** : politique de robustesse appliquée via `express-validator#isStrongPassword` sur l'inscription, la réinitialisation et le changement de mot de passe — 8 caractères minimum, au moins une majuscule, une minuscule et un chiffre (`utils/passwordPolicy.js`, règle centralisée pour rester cohérente sur les 3 endpoints).
+- **CSRF** (`middleware/csrf.js`, pattern *double-submit cookie*) : en production, le cookie de session est posé en `sameSite: "none"` (frontend et backend sur des origines différentes), ce qui désactive la protection CSRF native de `sameSite: "lax"`. Un second cookie non-`httpOnly` (`supmeal_csrf`) est posé à la connexion ; le frontend le recopie dans l'en-tête `X-CSRF-Token` sur toute requête mutante (voir `frontend/src/lib/api.js`). Toute requête `POST/PATCH/PUT/DELETE` sur une route authentifiée sans en-tête correspondant au cookie est rejetée en `403`. Les routes publiques (`/auth/register`, `/auth/login`, ...) ne sont pas concernées puisqu'aucune session n'existe encore à ce stade.
+- **Autorisation des membres de cookbook** : `PATCH/DELETE /cookbooks/:id/members/:memberId` vérifie que le membre ciblé appartient bien au cookbook `:id` (et pas seulement que l'appelant est propriétaire d'*un* cookbook) avant de modifier son rôle ou de le retirer — sinon `404`.
+- **Révocation des JWT** : `User.tokenVersion` (incrémenté à chaque changement/réinitialisation de mot de passe) est embarqué dans le payload du JWT et revérifié en base à chaque requête authentifiée (`middleware/auth.js`). Un JWT signé avant un changement de mot de passe devient donc invalide immédiatement (`401`), sans attendre son expiration (7 jours) — utile si le token a fuité ou si une autre session doit être coupée. La session qui effectue elle-même le changement (`PATCH /users/me/password`) reçoit un cookie réémis avec le nouveau `tokenVersion`, donc n'est pas déconnectée par sa propre action ; `POST /auth/reset-password` (flux mot de passe oublié) n'a pas de session active à réémettre, toutes les sessions existantes sont donc invalidées.
+- **Secrets** : `.env` n'est jamais committé (`.gitignore`), voir `.env.example` pour la liste des variables attendues.
 
 ## Documentation interactive (Swagger)
 

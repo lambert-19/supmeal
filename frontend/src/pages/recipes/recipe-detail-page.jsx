@@ -1,9 +1,11 @@
+import { useEffect, useState } from "react"
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom"
 import { toast } from "sonner"
 import { BookOpen, ChefHat, Clock, Heart, Pencil, Trash2, Users } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { PageLoader } from "@/components/page-loader"
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel"
 import {
   AlertDialog,
@@ -19,31 +21,79 @@ import {
 import { RecipeComments } from "@/components/recipes/recipe-comments"
 import { useAuthStore } from "@/lib/stores/auth-store"
 import { useRecipesStore } from "@/lib/stores/recipes-store"
-import { useCookbooksStore } from "@/lib/stores/cookbooks-store"
-import { canComment, getCookbookRole } from "@/lib/cookbook-permissions"
+import { api, apiErrorMessage } from "@/lib/api"
+import { canComment } from "@/lib/cookbook-permissions"
 
 export function RecipeDetailPage() {
   const { id } = useParams()
+  // key={id} force un remontage complet si l'id change en restant sur la même
+  // route (ex. lien vers une autre fiche recette) : état de départ frais à chaque
+  // montage plutôt qu'un reset via setState synchrone en tête d'effet (déconseillé
+  // par eslint-plugin-react-hooks).
+  return <RecipeDetailContent key={id} id={id} />
+}
+
+function RecipeDetailContent({ id }) {
   const user = useAuthStore((s) => s.user)
-  const recipes = useRecipesStore((s) => s.recipes)
   const toggleFavorite = useRecipesStore((s) => s.toggleFavorite)
   const deleteRecipe = useRecipesStore((s) => s.deleteRecipe)
-  const cookbooks = useCookbooksStore((s) => s.cookbooks)
   const navigate = useNavigate()
 
-  const recipe = recipes.find((r) => r.id === id)
-  const cookbook = recipe?.cookbookId ? cookbooks.find((c) => c.id === recipe.cookbookId) : null
-  const role = cookbook ? getCookbookRole(cookbook, user) : null
-  const isOwner = recipe?.ownerId === user.id
-  const canView = isOwner || (cookbook && role !== null)
-  if (!recipe || !canView) return <Navigate to="/recipes" replace />
+  const [recipe, setRecipe] = useState(null)
+  const [cookbookRole, setCookbookRole] = useState(null)
+  const [status, setStatus] = useState("loading") // loading | loaded | not-found
 
-  const canPostComment = cookbook ? canComment(role) : isOwner
+  useEffect(() => {
+    let cancelled = false
 
-  function handleDelete() {
-    deleteRecipe(id)
-    toast.success("Recette supprimée.")
-    navigate("/recipes", { replace: true })
+    api
+      .get(`/recipes/${id}`)
+      .then(async ({ data }) => {
+        if (cancelled) return
+        setRecipe(data)
+        // Le rôle sur le cookbook conditionne le droit de commenter — voir recipe-comments.jsx.
+        if (data.cookbookId) {
+          try {
+            const { data: cookbook } = await api.get(`/cookbooks/${data.cookbookId}`)
+            if (!cancelled) setCookbookRole(cookbook.role)
+          } catch {
+            // Le cookbook n'est plus accessible (retiré entre-temps) : pas de droit de commenter.
+          }
+        }
+        if (!cancelled) setStatus("loaded")
+      })
+      .catch(() => {
+        if (!cancelled) setStatus("not-found")
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [id])
+
+  if (status === "loading") return <PageLoader />
+  if (status === "not-found") return <Navigate to="/recipes" replace />
+
+  const isOwner = recipe.ownerId === user.id
+  const canPostComment = recipe.cookbook ? canComment(cookbookRole) : isOwner
+
+  async function handleToggleFavorite() {
+    try {
+      await toggleFavorite(recipe.id)
+      setRecipe((prev) => ({ ...prev, favorite: !prev.favorite }))
+    } catch (error) {
+      toast.error(apiErrorMessage(error, "Impossible de mettre à jour le favori."))
+    }
+  }
+
+  async function handleDelete() {
+    try {
+      await deleteRecipe(id)
+      toast.success("Recette supprimée.")
+      navigate("/recipes", { replace: true })
+    } catch (error) {
+      toast.error(apiErrorMessage(error, "Impossible de supprimer la recette."))
+    }
   }
 
   return (
@@ -51,9 +101,9 @@ export function RecipeDetailPage() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <Link
-            to={cookbook ? `/cookbooks/${cookbook.id}` : "/recipes"}
+            to={recipe.cookbook ? `/cookbooks/${recipe.cookbook.id}` : "/recipes"}
             className="text-sm text-muted-foreground hover:underline">
-            ← {cookbook ? cookbook.name : "Mes recettes"}
+            ← {recipe.cookbook ? recipe.cookbook.name : "Mes recettes"}
           </Link>
           <h1 className="font-heading text-2xl font-semibold">{recipe.title}</h1>
         </div>
@@ -62,7 +112,7 @@ export function RecipeDetailPage() {
             <Button
               variant="outline"
               size="icon"
-              onClick={() => toggleFavorite(recipe.id)}
+              onClick={handleToggleFavorite}
               aria-label={recipe.favorite ? "Retirer des favoris" : "Ajouter aux favoris"}>
               <Heart className={recipe.favorite ? "size-4 fill-primary text-primary" : "size-4"} />
             </Button>
@@ -138,11 +188,11 @@ export function RecipeDetailPage() {
         </span>
       </div>
 
-      {cookbook && (
-        <Link to={`/cookbooks/${cookbook.id}`} className="inline-block w-fit">
+      {recipe.cookbook && (
+        <Link to={`/cookbooks/${recipe.cookbook.id}`} className="inline-block w-fit">
           <Badge variant="outline" className="gap-1">
             <BookOpen className="size-3" />
-            {cookbook.name}
+            {recipe.cookbook.name}
           </Badge>
         </Link>
       )}

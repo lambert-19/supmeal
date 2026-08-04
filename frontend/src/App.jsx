@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react"
+import { lazy, Suspense, useEffect } from "react"
 import { Navigate, Route, Routes } from "react-router-dom"
 
 import { Toaster } from "@/components/ui/sonner"
@@ -7,6 +7,7 @@ import { AppLayout } from "@/layouts/app-layout"
 import { AuthLayout } from "@/layouts/auth-layout"
 import { ProtectedRoute } from "@/routes/protected-route"
 import { PublicOnlyRoute } from "@/routes/public-only-route"
+import { useAuthStore } from "@/lib/stores/auth-store"
 
 const LoginPage = lazy(() => import("@/pages/auth/login-page").then((m) => ({ default: m.LoginPage })))
 const RegisterPage = lazy(() => import("@/pages/auth/register-page").then((m) => ({ default: m.RegisterPage })))
@@ -42,6 +43,17 @@ const SettingsPage = lazy(() => import("@/pages/settings-page").then((m) => ({ d
 const NotFoundPage = lazy(() => import("@/pages/not-found-page").then((m) => ({ default: m.NotFoundPage })))
 
 function App() {
+  const status = useAuthStore((s) => s.status)
+  const bootstrap = useAuthStore((s) => s.bootstrap)
+
+  useEffect(() => {
+    bootstrap()
+  }, [bootstrap])
+
+  if (status !== "ready") {
+    return <PageLoader />
+  }
+
   return (
     <>
       <Suspense fallback={<PageLoader />}>

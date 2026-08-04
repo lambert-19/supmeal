@@ -1,14 +1,15 @@
-import { useMemo } from "react"
+import { useEffect } from "react"
 
-import { useAuthStore } from "@/lib/stores/auth-store"
 import { useCookbooksStore } from "@/lib/stores/cookbooks-store"
-import { getCookbookRole } from "@/lib/cookbook-permissions"
 
 export function useMyCookbooks() {
-  const user = useAuthStore((s) => s.user)
   const cookbooks = useCookbooksStore((s) => s.cookbooks)
-  return useMemo(
-    () => cookbooks.filter((cookbook) => getCookbookRole(cookbook, user) !== null),
-    [cookbooks, user]
-  )
+  const status = useCookbooksStore((s) => s.status)
+  const fetchAll = useCookbooksStore((s) => s.fetchAll)
+
+  useEffect(() => {
+    if (status === "idle") fetchAll()
+  }, [status, fetchAll])
+
+  return cookbooks
 }

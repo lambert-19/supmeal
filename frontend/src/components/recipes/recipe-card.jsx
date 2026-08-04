@@ -1,11 +1,13 @@
 import { Link } from "react-router-dom"
 import { motion, useMotionValue, useReducedMotion, useSpring, useTransform } from "framer-motion"
 import { ChefHat, Clock, Heart, Images, Users } from "lucide-react"
+import { toast } from "sonner"
 
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { useRecipesStore } from "@/lib/stores/recipes-store"
+import { apiErrorMessage } from "@/lib/api"
 
 const MAX_VISIBLE_TAGS = 3
 const TILT_RANGE = 10
@@ -46,6 +48,14 @@ export function RecipeCard({ recipe }) {
     pointerY.set(0.5)
   }
 
+  async function handleToggleFavorite() {
+    try {
+      await toggleFavorite(recipe.id)
+    } catch (error) {
+      toast.error(apiErrorMessage(error, "Impossible de mettre à jour le favori."))
+    }
+  }
+
   return (
     <motion.div
       onPointerMove={handlePointerMove}
@@ -84,7 +94,7 @@ export function RecipeCard({ recipe }) {
             type="button"
             variant="secondary"
             size="icon-sm"
-            onClick={() => toggleFavorite(recipe.id)}
+            onClick={handleToggleFavorite}
             aria-label={recipe.favorite ? "Retirer des favoris" : "Ajouter aux favoris"}>
             <Heart className={recipe.favorite ? "size-4 fill-primary text-primary" : "size-4"} />
           </Button>

@@ -1,7 +1,7 @@
 const prisma = require("../utils/prisma");
 const AppError = require("../utils/AppError");
 
-const RECIPE_INCLUDE = { ingredients: true, steps: true };
+const RECIPE_INCLUDE = { ingredients: true, steps: true, cookbook: { select: { id: true, name: true } } };
 
 const TIME_BUCKETS = {
   15: (total) => total <= 15,
