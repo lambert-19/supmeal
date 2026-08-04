@@ -10,6 +10,8 @@ import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import { FormField } from "@/components/form-field"
 import { MotionPress } from "@/components/motion-press"
+import { GoogleIcon } from "@/components/icons/google-icon"
+import { GithubIcon } from "@/components/icons/github-icon"
 import { useAuthStore } from "@/lib/stores/auth-store"
 import { loginSchema } from "@/lib/schemas/auth"
 import { FORM_STAGGER_CONTAINER_VARIANTS, FORM_STAGGER_ITEM_VARIANTS } from "@/lib/motion-variants"
@@ -61,11 +63,13 @@ export function LoginPage() {
       <motion.div variants={prefersReducedMotion ? undefined : FORM_STAGGER_ITEM_VARIANTS} className="grid grid-cols-2 gap-2.5">
         <MotionPress>
           <Button variant="outline" type="button" className="w-full" onClick={() => notifyOAuthComingSoon("Google")}>
+            <GoogleIcon />
             Google
           </Button>
         </MotionPress>
         <MotionPress>
           <Button variant="outline" type="button" className="w-full" onClick={() => notifyOAuthComingSoon("GitHub")}>
+            <GithubIcon className="size-4" />
             GitHub
           </Button>
         </MotionPress>
