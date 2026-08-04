@@ -3,9 +3,11 @@ const helmet = require("helmet");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const morgan = require("morgan");
+const swaggerUi = require("swagger-ui-express");
 
 const errorHandler = require("./middleware/errorHandler");
 const AppError = require("./utils/AppError");
+const swaggerSpec = require("./utils/swagger");
 const authRoutes = require("./routes/auth.routes");
 const usersRoutes = require("./routes/users.routes");
 const recipesRoutes = require("./routes/recipes.routes");
@@ -37,6 +39,17 @@ if (process.env.NODE_ENV !== "test") {
 app.get("/", (req, res) => {
   res.json({ status: "ok", service: "supmeal-backend" });
 });
+
+app.get("/api-docs.json", (req, res) => res.json(swaggerSpec));
+app.use(
+  "/api-docs",
+  (req, res, next) => {
+    res.removeHeader("Content-Security-Policy");
+    next();
+  },
+  swaggerUi.serve,
+  swaggerUi.setup(swaggerSpec, { customSiteTitle: "SUPMEAL API" })
+);
 
 app.use("/auth", authRoutes);
 app.use("/users", usersRoutes);

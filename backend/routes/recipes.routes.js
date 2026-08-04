@@ -21,11 +21,111 @@ const recipeValidation = [
   body("images").optional().isArray({ max: 10 }).withMessage("10 images maximum."),
 ];
 
+/**
+ * @swagger
+ * /recipes:
+ *   get:
+ *     tags: [Recipes]
+ *     summary: Lister mes recettes
+ *     description: Recherche texte, filtre par tags/durée/favoris (paramètres selon `recipes.service.js`).
+ *     parameters:
+ *       - in: query
+ *         name: q
+ *         schema: { type: string }
+ *         description: Recherche texte dans le titre.
+ *       - in: query
+ *         name: favorite
+ *         schema: { type: boolean }
+ *     responses:
+ *       200:
+ *         description: Liste des recettes de l'utilisateur connecté.
+ *         content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Recipe' } } } }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *   post:
+ *     tags: [Recipes]
+ *     summary: Créer une recette
+ *     requestBody:
+ *       required: true
+ *       content: { application/json: { schema: { $ref: '#/components/schemas/RecipeInput' } } }
+ *     responses:
+ *       201:
+ *         description: Recette créée.
+ *         content: { application/json: { schema: { $ref: '#/components/schemas/Recipe' } } }
+ *       400: { $ref: '#/components/responses/ValidationError' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ */
 router.get("/", recipesController.list);
+
+/**
+ * @swagger
+ * /recipes/{id}:
+ *   get:
+ *     tags: [Recipes]
+ *     summary: Détail d'une recette
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Recette.
+ *         content: { application/json: { schema: { $ref: '#/components/schemas/Recipe' } } }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *   patch:
+ *     tags: [Recipes]
+ *     summary: Modifier une recette
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content: { application/json: { schema: { $ref: '#/components/schemas/RecipeInput' } } }
+ *     responses:
+ *       200:
+ *         description: Recette mise à jour.
+ *         content: { application/json: { schema: { $ref: '#/components/schemas/Recipe' } } }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *   delete:
+ *     tags: [Recipes]
+ *     summary: Supprimer une recette
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       204: { description: Recette supprimée. }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ */
 router.get("/:id", recipesController.getOne);
 router.post("/", recipeValidation, validate, recipesController.create);
 router.patch("/:id", recipesController.update);
 router.delete("/:id", recipesController.remove);
+
+/**
+ * @swagger
+ * /recipes/{id}/favorite:
+ *   patch:
+ *     tags: [Recipes]
+ *     summary: Basculer le statut favori
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Recette mise à jour.
+ *         content: { application/json: { schema: { $ref: '#/components/schemas/Recipe' } } }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ */
 router.patch("/:id/favorite", recipesController.toggleFavorite);
 
 module.exports = router;

@@ -12,6 +12,7 @@ API REST du backend SUPMEAL. Node.js + Express 5 + Prisma + PostgreSQL, authenti
 - **helmet**, **cors** (avec `credentials: true`) pour la sécurité de base
 - **morgan** pour les logs de requêtes en dev
 - **nodemailer** pour l'envoi des emails de vérification/réinitialisation (voir section dédiée ci-dessous)
+- **swagger-jsdoc + swagger-ui-express** pour la documentation interactive de l'API (voir section dédiée ci-dessous)
 
 **Hors périmètre pour l'instant** (prévu pour une passe suivante, cohérent avec les placeholders déjà présents côté frontend) : OAuth2 Google/GitHub réel, chat temps réel Socket.io, upload d'images via `multer` (les images restent des data URL base64 stockées telles quelles).
 
@@ -26,6 +27,8 @@ npm run dev                   # démarre avec nodemon sur http://localhost:4000
 Copier `.env.example` vers `.env` et renseigner `DATABASE_URL` (Postgres) + les autres variables avant de lancer.
 
 Autres scripts : `npm start` (production, sans nodemon), `npm run prisma:generate`, `npm run prisma:studio` (explorateur de données).
+
+Documentation interactive de l'API une fois le serveur lancé : http://localhost:4000/api-docs (spec brute en JSON : `/api-docs.json`).
 
 ## Variables d'environnement (`.env`)
 
@@ -64,6 +67,8 @@ backend/
                                 elle est rattachée) et le droit de la commenter, réutilisé par les recettes
                                 et les commentaires
     serializers.js               formes de réponse JSON (toSafeUser masque le hash de mot de passe, etc.)
+    swagger.js                    définition OpenAPI (schémas, sécurité cookie) + agrégation des annotations
+                                  JSDoc `@swagger` présentes dans routes/*.routes.js, servie sur /api-docs
     AppError.js / asyncHandler.js   utilitaires d'erreurs/async
   middleware/
     auth.js                 requireAuth : lit le cookie, vérifie le JWT, attache req.user = { id }
@@ -102,6 +107,15 @@ Les réponses API sur les cookbooks/membres passent systématiquement par `toCoo
 - `POST /auth/resend-verification` et `POST /auth/forgot-password` renvoient toujours une réponse **générique identique**, que l'email corresponde à un compte ou non — évite qu'un attaquant énumère les comptes existants via ces endpoints.
 - Sans configuration SMTP (`SMTP_HOST` absent), `utils/mailer.js` ne part pas réellement : le lien est loggé dans la console du serveur (`[mailer] SMTP non configuré...`), pratique pour tester en local sans compte mail.
 
+## Documentation interactive (Swagger)
+
+La spec OpenAPI 3 est générée à partir d'annotations JSDoc `@swagger` directement dans `routes/*.routes.js` (une annotation par endpoint, à côté de la définition de la route — pas de fichier séparé à maintenir en double). `utils/swagger.js` définit le socle (info, tags, schémas de `components.schemas` calqués sur les DTO de `utils/serializers.js`, schéma de sécurité `cookieAuth`) et agrège ces annotations via `swagger-jsdoc`.
+
+- **UI interactive** : `GET /api-docs` (swagger-ui-express) — permet de tester les endpoints directement depuis le navigateur ("Try it out"). Le cookie de session posé par `POST /auth/login` sur le même domaine est automatiquement envoyé par le navigateur, donc les routes protégées fonctionnent une fois connecté via l'UI.
+- **Spec brute** : `GET /api-docs.json` — utilisable pour générer un client, l'importer dans Postman/Insomnia, etc.
+- Le header CSP posé par `helmet` est désactivé uniquement sur `/api-docs` (nécessaire au rendu de swagger-ui, qui utilise du JS/CSS inline) — inchangé sur le reste de l'API.
+- Chaque endpoint documente sa méthode/paramètres/corps de requête, ses réponses possibles (avec les codes 400/401/403/404 pertinents référençant `components.responses`), et son tag de domaine (Auth, Users, Recipes, Cookbooks, Planning, Comments, Messages).
+
 ## Endpoints
 
 | Domaine | Routes |
@@ -116,14 +130,14 @@ Les réponses API sur les cookbooks/membres passent systématiquement par `toCoo
 
 ## Vérification
 
-Toutes les routes ont été testées via des scripts Node (`fetch` + assertions) simulant plusieurs comptes (créateur/éditeur/lecteur/étranger) : CRUD complet, filtres de recherche, upsert de planning, et surtout les cas de permissions (accès refusé, tentative de contournement des droits de cookbook via le PATCH générique, visibilité 404 vs 403). Le flux de vérification d'email et de réinitialisation de mot de passe est couvert par 24 assertions dédiées (token invalide/expiré/réutilisé, blocage du login tant que l'email n'est pas vérifié, réponse anti-énumération sur forgot-password). Le flux d'invitation par lien sécurisé est couvert par 32 assertions dédiées (compte existant vs invitation en attente, token invalide/déjà consommé qui n'empêche jamais l'inscription, rôle correctement appliqué une fois le compte créé et vérifié, `inviteTokenHash` jamais exposé). Pas encore de suite de tests automatisés committée (`vitest`/`jest` non installés côté backend) — à ajouter en même temps que le rebranchement du frontend sur cette API.
+Toutes les routes ont été testées via des scripts Node (`fetch` + assertions) simulant plusieurs comptes (créateur/éditeur/lecteur/étranger) : CRUD complet, filtres de recherche, upsert de planning, et surtout les cas de permissions (accès refusé, tentative de contournement des droits de cookbook via le PATCH générique, visibilité 404 vs 403). Le flux de vérification d'email et de réinitialisation de mot de passe est couvert par 24 assertions dédiées (token invalide/expiré/réutilisé, blocage du login tant que l'email n'est pas vérifié, réponse anti-énumération sur forgot-password). Le flux d'invitation par lien sécurisé est couvert par 32 assertions dédiées (compte existant vs invitation en attente, token invalide/déjà consommé qui n'empêche jamais l'inscription, rôle correctement appliqué une fois le compte créé et vérifié, `inviteTokenHash` jamais exposé). Pas encore de suite de tests automatisés committée (`vitest`/`jest` non installés côté backend) — à ajouter en même temps que le rebranchement du frontend sur cette API. La spec Swagger a été vérifiée en démarrant le serveur et en interrogeant `/api-docs.json` (25 chemins générés, tous les schémas présents) et `/api-docs` (rendu HTML de swagger-ui confirmé).
 
 ## À venir
 
-- Rebrancher le frontend (`frontend/src/lib/stores/*.js`) sur cette API à la place du mock `localStorage` — les méthodes des stores ont été conçues en miroir des endpoints ci-dessus pour rendre ce rebranchement direct. Le frontend devra aussi gérer : l'écran "vérifiez votre email" après inscription (plus de connexion automatique), et les pages `/verify-email` et `/reset-password` qui lisent le token dans l'URL.
+- Rebrancher le reste du frontend (`frontend/src/lib/stores/*.js`) sur cette API à la place du mock `localStorage` — les méthodes des stores ont été conçues en miroir des endpoints ci-dessus pour rendre ce rebranchement direct. Les pages `/verify-email` et `/reset-password` sont déjà branchées sur la vraie API (voir `frontend/README.md`) ; le reste (recettes, cookbooks, planning...) tourne encore sur le mock. L'UI d'invitation de cookbook (`cookbook-detail-page.jsx`) reste également mock, pas encore branchée sur `POST /cookbooks/:id/members`.
 - OAuth2 Google/GitHub réel (Passport, déjà en dépendance).
 - Socket.io pour la messagerie en temps réel.
 - Upload d'images via `multer` (actuellement data URL base64 stockées en base).
-- Emails d'invitation de membres de cookbook via `nodemailer` (l'infrastructure d'envoi existe déjà — `utils/mailer.js` — mais `inviteMember` n'envoie pas encore d'email).
+- SMS pour les invitations de cookbook : écarté volontairement (tout fournisseur fiable est payant), email uniquement pour l'instant.
 - Configuration SMTP réelle en production (actuellement simulée en dev).
 - Docker (`dockerfile` et `docker-compose.yaml` encore vides).
