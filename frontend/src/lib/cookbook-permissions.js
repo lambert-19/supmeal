@@ -14,3 +14,7 @@ export function canManageCookbook(role) {
 export function canEditRecipes(role) {
   return role === "creator" || role === "editor"
 }
+
+export function canComment(role) {
+  return role === "creator" || role === "editor" || role === "commentator"
+}

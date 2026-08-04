@@ -1,73 +1,90 @@
+import { lazy, Suspense } from "react"
 import { Navigate, Route, Routes } from "react-router-dom"
 
 import { Toaster } from "@/components/ui/sonner"
+import { PageLoader } from "@/components/page-loader"
 import { AppLayout } from "@/layouts/app-layout"
 import { AuthLayout } from "@/layouts/auth-layout"
 import { ProtectedRoute } from "@/routes/protected-route"
 import { PublicOnlyRoute } from "@/routes/public-only-route"
-import { LoginPage } from "@/pages/auth/login-page"
-import { RegisterPage } from "@/pages/auth/register-page"
-import { RecipesPage } from "@/pages/recipes-page"
-import { NewRecipePage } from "@/pages/recipes/new-recipe-page"
-import { EditRecipePage } from "@/pages/recipes/edit-recipe-page"
-import { RecipeDetailPage } from "@/pages/recipes/recipe-detail-page"
-import { CookbooksPage } from "@/pages/cookbooks-page"
-import { NewCookbookPage } from "@/pages/cookbooks/new-cookbook-page"
-import { EditCookbookPage } from "@/pages/cookbooks/edit-cookbook-page"
-import { CookbookDetailPage } from "@/pages/cookbooks/cookbook-detail-page"
-import { PlanningPage } from "@/pages/planning-page"
-import { FavoritesPage } from "@/pages/favorites-page"
-import { SettingsPage } from "@/pages/settings-page"
-import { NotFoundPage } from "@/pages/not-found-page"
+
+const LoginPage = lazy(() => import("@/pages/auth/login-page").then((m) => ({ default: m.LoginPage })))
+const RegisterPage = lazy(() => import("@/pages/auth/register-page").then((m) => ({ default: m.RegisterPage })))
+const RecipesPage = lazy(() => import("@/pages/recipes-page").then((m) => ({ default: m.RecipesPage })))
+const NewRecipePage = lazy(() =>
+  import("@/pages/recipes/new-recipe-page").then((m) => ({ default: m.NewRecipePage }))
+)
+const EditRecipePage = lazy(() =>
+  import("@/pages/recipes/edit-recipe-page").then((m) => ({ default: m.EditRecipePage }))
+)
+const RecipeDetailPage = lazy(() =>
+  import("@/pages/recipes/recipe-detail-page").then((m) => ({ default: m.RecipeDetailPage }))
+)
+const CookbooksPage = lazy(() => import("@/pages/cookbooks-page").then((m) => ({ default: m.CookbooksPage })))
+const NewCookbookPage = lazy(() =>
+  import("@/pages/cookbooks/new-cookbook-page").then((m) => ({ default: m.NewCookbookPage }))
+)
+const EditCookbookPage = lazy(() =>
+  import("@/pages/cookbooks/edit-cookbook-page").then((m) => ({ default: m.EditCookbookPage }))
+)
+const CookbookDetailPage = lazy(() =>
+  import("@/pages/cookbooks/cookbook-detail-page").then((m) => ({ default: m.CookbookDetailPage }))
+)
+const PlanningPage = lazy(() => import("@/pages/planning-page").then((m) => ({ default: m.PlanningPage })))
+const FavoritesPage = lazy(() => import("@/pages/favorites-page").then((m) => ({ default: m.FavoritesPage })))
+const SettingsPage = lazy(() => import("@/pages/settings-page").then((m) => ({ default: m.SettingsPage })))
+const NotFoundPage = lazy(() => import("@/pages/not-found-page").then((m) => ({ default: m.NotFoundPage })))
 
 function App() {
   return (
     <>
-      <Routes>
-        <Route path="/" element={<Navigate to="/recipes" replace />} />
+      <Suspense fallback={<PageLoader />}>
+        <Routes>
+          <Route path="/" element={<Navigate to="/recipes" replace />} />
 
-        <Route
-          path="/login"
-          element={
-            <PublicOnlyRoute>
-              <AuthLayout>
-                <LoginPage />
-              </AuthLayout>
-            </PublicOnlyRoute>
-          }
-        />
-        <Route
-          path="/register"
-          element={
-            <PublicOnlyRoute>
-              <AuthLayout>
-                <RegisterPage />
-              </AuthLayout>
-            </PublicOnlyRoute>
-          }
-        />
+          <Route
+            path="/login"
+            element={
+              <PublicOnlyRoute>
+                <AuthLayout>
+                  <LoginPage />
+                </AuthLayout>
+              </PublicOnlyRoute>
+            }
+          />
+          <Route
+            path="/register"
+            element={
+              <PublicOnlyRoute>
+                <AuthLayout>
+                  <RegisterPage />
+                </AuthLayout>
+              </PublicOnlyRoute>
+            }
+          />
 
-        <Route
-          element={
-            <ProtectedRoute>
-              <AppLayout />
-            </ProtectedRoute>
-          }>
-          <Route path="/recipes" element={<RecipesPage />} />
-          <Route path="/recipes/new" element={<NewRecipePage />} />
-          <Route path="/recipes/:id" element={<RecipeDetailPage />} />
-          <Route path="/recipes/:id/edit" element={<EditRecipePage />} />
-          <Route path="/cookbooks" element={<CookbooksPage />} />
-          <Route path="/cookbooks/new" element={<NewCookbookPage />} />
-          <Route path="/cookbooks/:id" element={<CookbookDetailPage />} />
-          <Route path="/cookbooks/:id/edit" element={<EditCookbookPage />} />
-          <Route path="/planning" element={<PlanningPage />} />
-          <Route path="/favorites" element={<FavoritesPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-        </Route>
+          <Route
+            element={
+              <ProtectedRoute>
+                <AppLayout />
+              </ProtectedRoute>
+            }>
+            <Route path="/recipes" element={<RecipesPage />} />
+            <Route path="/recipes/new" element={<NewRecipePage />} />
+            <Route path="/recipes/:id" element={<RecipeDetailPage />} />
+            <Route path="/recipes/:id/edit" element={<EditRecipePage />} />
+            <Route path="/cookbooks" element={<CookbooksPage />} />
+            <Route path="/cookbooks/new" element={<NewCookbookPage />} />
+            <Route path="/cookbooks/:id" element={<CookbookDetailPage />} />
+            <Route path="/cookbooks/:id/edit" element={<EditCookbookPage />} />
+            <Route path="/planning" element={<PlanningPage />} />
+            <Route path="/favorites" element={<FavoritesPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+          </Route>
 
-        <Route path="*" element={<NotFoundPage />} />
-      </Routes>
+          <Route path="*" element={<NotFoundPage />} />
+        </Routes>
+      </Suspense>
       <Toaster position="top-right" />
     </>
   )

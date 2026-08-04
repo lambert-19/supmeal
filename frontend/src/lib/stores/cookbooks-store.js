@@ -2,10 +2,7 @@ import { create } from "zustand"
 import { persist } from "zustand/middleware"
 
 import { findMockUserByEmail } from "@/lib/stores/auth-store"
-
-function createId() {
-  return `cookbook-${Math.random().toString(36).slice(2, 10)}`
-}
+import { createId } from "@/lib/stores/store-utils"
 
 function normalizeCookbook(cookbook) {
   return { description: "", members: [], ...cookbook }
@@ -18,7 +15,7 @@ export const useCookbooksStore = create(
 
       addCookbook(ownerId, data) {
         const cookbook = {
-          id: createId(),
+          id: createId("cookbook"),
           ownerId,
           name: data.name,
           description: data.description ?? "",

@@ -1,9 +1,7 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 
-function createId() {
-  return `planning-${Math.random().toString(36).slice(2, 10)}`
-}
+import { createId } from "@/lib/stores/store-utils"
 
 export const usePlanningStore = create(
   persist(
@@ -16,7 +14,7 @@ export const usePlanningStore = create(
             (entry) => entry.ownerId === ownerId && entry.date === date && entry.mealSlot === mealSlot
           )
           const entry = {
-            id: existingIndex === -1 ? createId() : state.entries[existingIndex].id,
+            id: existingIndex === -1 ? createId("planning") : state.entries[existingIndex].id,
             ownerId,
             date,
             mealSlot,

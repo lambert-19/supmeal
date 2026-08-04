@@ -1,6 +1,8 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 
+import { createId } from "@/lib/stores/store-utils"
+
 const DEMO_RECIPES = [
   {
     id: "recipe-demo-1",
@@ -61,10 +63,6 @@ const DEMO_RECIPES = [
   },
 ]
 
-function createId() {
-  return `recipe-${Math.random().toString(36).slice(2, 10)}`
-}
-
 function normalizeRecipe(recipe) {
   const normalized = Array.isArray(recipe.images)
     ? recipe
@@ -82,7 +80,7 @@ export const useRecipesStore = create(
 
       addRecipe(ownerId, data) {
         const recipe = {
-          id: createId(),
+          id: createId("recipe"),
           ownerId,
           favorite: false,
           cookbookId: null,

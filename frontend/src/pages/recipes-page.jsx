@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react"
 import { Link, useSearchParams } from "react-router-dom"
+import { motion, useReducedMotion } from "framer-motion"
 import { Heart, Plus, SearchX, UtensilsCrossed, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -7,9 +8,12 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { PageHeader } from "@/components/page-header"
 import { EmptyState } from "@/components/empty-state"
+import { MotionPress } from "@/components/motion-press"
 import { RecipeCard } from "@/components/recipes/recipe-card"
+import { RecipeImportExport } from "@/components/recipes/recipe-import-export"
 import { useMyRecipes } from "@/hooks/use-my-recipes"
 import { cn } from "@/lib/utils"
+import { GRID_CONTAINER_VARIANTS, GRID_ITEM_VARIANTS } from "@/lib/motion-variants"
 
 const TIME_FILTERS = [
   { value: "all", label: "Toutes durées" },
@@ -21,6 +25,7 @@ const TIME_FILTERS = [
 
 export function RecipesPage() {
   const recipes = useMyRecipes()
+  const prefersReducedMotion = useReducedMotion()
   const [searchParams, setSearchParams] = useSearchParams()
   const [timeFilter, setTimeFilter] = useState("all")
   const [favoritesOnly, setFavoritesOnly] = useState(false)
@@ -81,10 +86,15 @@ export function RecipesPage() {
         title="Mes recettes"
         description="Retrouvez, filtrez et planifiez toutes vos recettes."
         action={
-          <Button render={<Link to="/recipes/new" />} nativeButton={false}>
-            <Plus />
-            Nouvelle recette
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <RecipeImportExport />
+            <MotionPress>
+              <Button render={<Link to="/recipes/new" />} nativeButton={false}>
+                <Plus />
+                Nouvelle recette
+              </Button>
+            </MotionPress>
+          </div>
         }
       />
 
@@ -163,11 +173,17 @@ export function RecipesPage() {
           }
         />
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <motion.div
+          variants={prefersReducedMotion ? undefined : GRID_CONTAINER_VARIANTS}
+          initial={prefersReducedMotion ? undefined : "hidden"}
+          animate={prefersReducedMotion ? undefined : "show"}
+          className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filteredRecipes.map((recipe) => (
-            <RecipeCard key={recipe.id} recipe={recipe} />
+            <motion.div key={recipe.id} variants={prefersReducedMotion ? undefined : GRID_ITEM_VARIANTS}>
+              <RecipeCard recipe={recipe} />
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       )}
     </div>
   )

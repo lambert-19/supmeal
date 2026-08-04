@@ -7,7 +7,7 @@ export const COOKBOOK_ROLES = [
   {
     value: "commentator",
     label: "Commentateur",
-    description: "Peut commenter les recettes (fonctionnalité à venir) ; lecture seule sinon.",
+    description: "Peut commenter les recettes et participer à la discussion du cookbook.",
   },
   {
     value: "reader",

@@ -3,7 +3,7 @@ import { Link, Navigate, useNavigate, useParams } from "react-router-dom"
 import { Controller, useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { toast } from "sonner"
-import { BookOpen, ChefHat, Pencil, Search, Trash2, UserPlus, X } from "lucide-react"
+import { BookOpen, ChefHat, Pencil, Search, SearchX, Trash2, UserPlus, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -30,7 +30,7 @@ import { useCookbooksStore } from "@/lib/stores/cookbooks-store"
 import { useRecipesStore } from "@/lib/stores/recipes-store"
 import { useMyRecipes } from "@/hooks/use-my-recipes"
 import { useCookbookRecipes } from "@/hooks/use-cookbook-recipes"
-import { getCookbookRole, canManageCookbook, canEditRecipes } from "@/lib/cookbook-permissions"
+import { getCookbookRole, canManageCookbook, canEditRecipes, canComment } from "@/lib/cookbook-permissions"
 import { COOKBOOK_ROLES } from "@/lib/constants/cookbook"
 import { inviteMemberSchema } from "@/lib/schemas/cookbook"
 
@@ -127,7 +127,7 @@ export function CookbookDetailPage() {
 
   return (
     <div className="max-w-3xl space-y-8">
-      <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-start gap-3">
           <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
             <BookOpen className="size-5" />
@@ -147,7 +147,7 @@ export function CookbookDetailPage() {
         </div>
 
         {isCreator && (
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex w-full items-center gap-2 sm:w-auto sm:shrink-0">
             <Button variant="outline" render={<Link to={`/cookbooks/${cookbook.id}/edit`} />} nativeButton={false}>
               <Pencil />
               Modifier
@@ -281,7 +281,7 @@ export function CookbookDetailPage() {
         </TabsContent>
 
         <TabsContent value="chat" className="pt-4">
-          <CookbookChat cookbookId={cookbook.id} />
+          <CookbookChat cookbookId={cookbook.id} canComment={canComment(role)} />
         </TabsContent>
 
         <TabsContent value="recipes" className="space-y-3 pt-4">
@@ -327,7 +327,7 @@ export function CookbookDetailPage() {
             }
           />
         ) : filteredRecipes.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Aucune recette ne correspond à « {query} ».</p>
+          <EmptyState icon={SearchX} title="Aucun résultat" description={`Aucune recette ne correspond à « ${query} ».`} />
         ) : (
           <div className="space-y-2">
             {filteredRecipes.map((recipe) => (
@@ -336,7 +336,7 @@ export function CookbookDetailPage() {
                   <Link to={`/recipes/${recipe.id}`} className="flex min-w-0 flex-1 items-center gap-3">
                     <div className="aspect-4/3 w-16 shrink-0 overflow-hidden rounded-md bg-muted">
                       {recipe.images[0] ? (
-                        <img src={recipe.images[0]} alt={recipe.title} className="size-full object-cover" />
+                        <img src={recipe.images[0]} alt={recipe.title} className="size-full object-cover" loading="lazy" />
                       ) : (
                         <div className="flex size-full items-center justify-center">
                           <ChefHat className="size-4 text-primary/40" />

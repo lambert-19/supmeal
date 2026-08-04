@@ -1,6 +1,8 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 
+import { createId } from "@/lib/stores/store-utils"
+
 const MOCK_USERS_KEY = "supmeal_mock_users"
 
 const DEFAULT_PREFERENCES = {
@@ -95,7 +97,7 @@ export const useAuthStore = create(
           throw new Error("email_taken")
         }
         const newUser = {
-          id: `user-${Math.random().toString(36).slice(2, 10)}`,
+          id: createId("user"),
           name,
           email,
           password,

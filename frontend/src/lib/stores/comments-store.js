@@ -1,9 +1,7 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 
-function createId() {
-  return `comment-${Math.random().toString(36).slice(2, 10)}`
-}
+import { createId } from "@/lib/stores/store-utils"
 
 export const useCommentsStore = create(
   persist(
@@ -12,7 +10,7 @@ export const useCommentsStore = create(
 
       addComment(recipeId, { authorId, authorName, text }) {
         const comment = {
-          id: createId(),
+          id: createId("comment"),
           recipeId,
           authorId,
           authorName,

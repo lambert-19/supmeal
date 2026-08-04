@@ -55,7 +55,7 @@ export function ImageGalleryInput({ value, onChange, className }) {
           <div
             key={index}
             className="relative aspect-4/3 w-32 shrink-0 overflow-hidden rounded-lg border border-border bg-muted">
-            <img src={src} alt={`Aperçu ${index + 1}`} className="size-full object-cover" />
+            <img src={src} alt={`Aperçu ${index + 1}`} className="size-full object-cover" loading="lazy" />
             <Button
               type="button"
               variant="secondary"

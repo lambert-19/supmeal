@@ -20,7 +20,7 @@ import { RecipeComments } from "@/components/recipes/recipe-comments"
 import { useAuthStore } from "@/lib/stores/auth-store"
 import { useRecipesStore } from "@/lib/stores/recipes-store"
 import { useCookbooksStore } from "@/lib/stores/cookbooks-store"
-import { getCookbookRole } from "@/lib/cookbook-permissions"
+import { canComment, getCookbookRole } from "@/lib/cookbook-permissions"
 
 export function RecipeDetailPage() {
   const { id } = useParams()
@@ -33,9 +33,12 @@ export function RecipeDetailPage() {
 
   const recipe = recipes.find((r) => r.id === id)
   const cookbook = recipe?.cookbookId ? cookbooks.find((c) => c.id === recipe.cookbookId) : null
+  const role = cookbook ? getCookbookRole(cookbook, user) : null
   const isOwner = recipe?.ownerId === user.id
-  const canView = isOwner || (cookbook && getCookbookRole(cookbook, user) !== null)
+  const canView = isOwner || (cookbook && role !== null)
   if (!recipe || !canView) return <Navigate to="/recipes" replace />
+
+  const canPostComment = cookbook ? canComment(role) : isOwner
 
   function handleDelete() {
     deleteRecipe(id)
@@ -104,6 +107,7 @@ export function RecipeDetailPage() {
                       src={src}
                       alt={`${recipe.title} — image ${index + 1}`}
                       className="size-full object-cover"
+                      loading="lazy"
                     />
                   </div>
                 </CarouselItem>
@@ -187,7 +191,7 @@ export function RecipeDetailPage() {
         </p>
       )}
 
-      <RecipeComments recipeId={recipe.id} />
+      <RecipeComments recipeId={recipe.id} canComment={canPostComment} />
     </div>
   )
 }

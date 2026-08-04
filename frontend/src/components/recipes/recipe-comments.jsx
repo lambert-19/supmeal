@@ -9,7 +9,7 @@ import { useCommentsStore } from "@/lib/stores/comments-store"
 import { useRecipeComments } from "@/hooks/use-recipe-comments"
 import { formatTimestamp, getInitials } from "@/lib/utils"
 
-export function RecipeComments({ recipeId }) {
+export function RecipeComments({ recipeId, canComment }) {
   const user = useAuthStore((s) => s.user)
   const comments = useRecipeComments(recipeId)
   const addComment = useCommentsStore((s) => s.addComment)
@@ -58,17 +58,19 @@ export function RecipeComments({ recipeId }) {
         </ul>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-2">
-        <Textarea
-          value={text}
-          onChange={(event) => setText(event.target.value)}
-          placeholder="Ajouter un commentaire..."
-          rows={2}
-        />
-        <Button type="submit" size="sm" disabled={!text.trim()}>
-          Publier
-        </Button>
-      </form>
+      {canComment && (
+        <form onSubmit={handleSubmit} className="space-y-2">
+          <Textarea
+            value={text}
+            onChange={(event) => setText(event.target.value)}
+            placeholder="Ajouter un commentaire..."
+            rows={2}
+          />
+          <Button type="submit" size="sm" disabled={!text.trim()}>
+            Publier
+          </Button>
+        </form>
+      )}
     </div>
   )
 }

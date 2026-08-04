@@ -1,15 +1,16 @@
 import { useState } from "react"
-import { Send } from "lucide-react"
+import { MessageCircle, Send } from "lucide-react"
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
+import { EmptyState } from "@/components/empty-state"
 import { useAuthStore } from "@/lib/stores/auth-store"
 import { useMessagesStore } from "@/lib/stores/messages-store"
 import { useCookbookMessages } from "@/hooks/use-cookbook-messages"
 import { cn, formatTimestamp, getInitials } from "@/lib/utils"
 
-export function CookbookChat({ cookbookId }) {
+export function CookbookChat({ cookbookId, canComment }) {
   const user = useAuthStore((s) => s.user)
   const messages = useCookbookMessages(cookbookId)
   const addMessage = useMessagesStore((s) => s.addMessage)
@@ -26,7 +27,13 @@ export function CookbookChat({ cookbookId }) {
   return (
     <div className="space-y-3">
       {messages.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Aucun message pour l'instant. Lancez la discussion !</p>
+        <EmptyState
+          icon={MessageCircle}
+          title="Aucun message"
+          description={
+            canComment ? "Lancez la discussion avec les membres du cookbook." : "Aucun message n'a encore été publié."
+          }
+        />
       ) : (
         <div className="max-h-96 space-y-4 overflow-y-auto rounded-lg border border-border p-3">
           {messages.map((message) => {
@@ -55,18 +62,20 @@ export function CookbookChat({ cookbookId }) {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="flex items-end gap-2">
-        <Textarea
-          value={text}
-          onChange={(event) => setText(event.target.value)}
-          placeholder="Écrire un message..."
-          rows={1}
-          className="flex-1 resize-none"
-        />
-        <Button type="submit" size="icon" disabled={!text.trim()} aria-label="Envoyer">
-          <Send className="size-4" />
-        </Button>
-      </form>
+      {canComment && (
+        <form onSubmit={handleSubmit} className="flex items-end gap-2">
+          <Textarea
+            value={text}
+            onChange={(event) => setText(event.target.value)}
+            placeholder="Écrire un message..."
+            rows={1}
+            className="flex-1 resize-none"
+          />
+          <Button type="submit" size="icon" disabled={!text.trim()} aria-label="Envoyer">
+            <Send className="size-4" />
+          </Button>
+        </form>
+      )}
     </div>
   )
 }
