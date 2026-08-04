@@ -126,14 +126,16 @@ Une recette n'appartient qu'à un seul cookbook à la fois (`recipe.cookbookId`,
 
 À faire dès que l'API cookbooks existe : remplacer `cookbooks-store.js` par de vrais appels API et une vraie notification d'invitation (email) plutôt qu'une résolution silencieuse par email.
 
-### Authentification actuellement mockée
+### Authentification — état mixte (mock + API réelle)
 
-Le backend n'expose pas encore de routes d'authentification. En attendant, `src/lib/stores/auth-store.js` simule un backend d'auth directement dans le navigateur :
+Le backend expose désormais de vraies routes d'authentification (voir `backend/README.md`), mais `src/lib/stores/auth-store.js` n'a pas encore été rebranché dessus : `login`, `register`, `logout`, `updateProfile`, `changePassword`, `updatePreferences` et `toggleOAuthConnection` simulent toujours un backend d'auth directement dans le navigateur :
 
 - les comptes créés via `/register` sont stockés dans `localStorage` (mot de passe en clair — **acceptable uniquement parce que c'est un mock de développement local**, à ne jamais faire côté serveur) ;
 - un compte de démonstration est préchargé : `demo@supmeal.fr` / `supmeal123` ;
-- `login`, `register` et `logout` sont les seules méthodes exposées par le store, pour pouvoir les rebrancher sur de vrais appels API (JWT, OAuth2) sans changer les pages qui les consomment.
+- ces méthodes sont les seules exposées par le store, pour pouvoir les rebrancher sur de vrais appels API (JWT, OAuth2) sans changer les pages qui les consomment.
 
-À faire dès que l'API d'authentification existe : remplacer le contenu de `auth-store.js` par des appels `axios` vers le backend et supprimer la persistance `localStorage` des mots de passe.
+**Exception** : les pages `/verify-email` et `/reset-password` (`src/pages/auth/verify-email-page.jsx`, `reset-password-page.jsx`) appellent déjà directement le vrai backend via `src/lib/api.js` (instance `axios`, `withCredentials: true`, base URL `VITE_API_URL` ou `http://localhost:4000` par défaut) — ces flux n'ont pas d'équivalent mockable en `localStorage` puisqu'ils dépendent d'un token envoyé par email par le vrai serveur. `login-page.jsx` a un lien "Mot de passe oublié ?" vers `/reset-password`.
+
+À faire pour terminer le rebranchement : remplacer le contenu du reste de `auth-store.js` (`login`/`register`/`logout`/...) par des appels à `src/lib/api.js` et supprimer la persistance `localStorage` des mots de passe. Il faudra aussi adapter `register-page.jsx`, qui navigue actuellement vers `/recipes` après inscription (auto-connexion) — l'API réelle ne connecte plus automatiquement, il faudra afficher un écran "vérifiez votre email" à la place.
 
 Voir [`../SUIVI_PROJET.md`](../SUIVI_PROJET.md) à la racine du dépôt pour le suivi détaillé du projet dans son ensemble.

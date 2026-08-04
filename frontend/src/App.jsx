@@ -10,6 +10,12 @@ import { PublicOnlyRoute } from "@/routes/public-only-route"
 
 const LoginPage = lazy(() => import("@/pages/auth/login-page").then((m) => ({ default: m.LoginPage })))
 const RegisterPage = lazy(() => import("@/pages/auth/register-page").then((m) => ({ default: m.RegisterPage })))
+const VerifyEmailPage = lazy(() =>
+  import("@/pages/auth/verify-email-page").then((m) => ({ default: m.VerifyEmailPage }))
+)
+const ResetPasswordPage = lazy(() =>
+  import("@/pages/auth/reset-password-page").then((m) => ({ default: m.ResetPasswordPage }))
+)
 const RecipesPage = lazy(() => import("@/pages/recipes-page").then((m) => ({ default: m.RecipesPage })))
 const NewRecipePage = lazy(() =>
   import("@/pages/recipes/new-recipe-page").then((m) => ({ default: m.NewRecipePage }))
@@ -60,6 +66,22 @@ function App() {
                   <RegisterPage />
                 </AuthLayout>
               </PublicOnlyRoute>
+            }
+          />
+          <Route
+            path="/verify-email"
+            element={
+              <AuthLayout>
+                <VerifyEmailPage />
+              </AuthLayout>
+            }
+          />
+          <Route
+            path="/reset-password"
+            element={
+              <AuthLayout>
+                <ResetPasswordPage />
+              </AuthLayout>
             }
           />
 

@@ -16,3 +16,17 @@ export const registerSchema = z
     message: "Les mots de passe ne correspondent pas.",
     path: ["confirmPassword"],
   })
+
+export const emailOnlySchema = z.object({
+  email: z.string().min(1, "L'adresse email est requise.").email("Adresse email invalide."),
+})
+
+export const resetPasswordSchema = z
+  .object({
+    newPassword: z.string().min(8, "8 caractères minimum."),
+    confirmNewPassword: z.string().min(1, "Merci de confirmer le mot de passe."),
+  })
+  .refine((data) => data.newPassword === data.confirmNewPassword, {
+    message: "Les mots de passe ne correspondent pas.",
+    path: ["confirmNewPassword"],
+  })

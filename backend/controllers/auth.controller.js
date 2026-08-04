@@ -1,0 +1,57 @@
+const authService = require("../services/auth.service");
+const { signToken, cookieOptions } = require("../utils/jwt");
+const { toSafeUser } = require("../utils/serializers");
+const asyncHandler = require("../utils/asyncHandler");
+
+const register = asyncHandler(async (req, res) => {
+  await authService.register(req.body);
+  res.status(201).json({ message: "Compte créé. Vérifiez votre boîte mail pour activer votre compte." });
+});
+
+const login = asyncHandler(async (req, res) => {
+  const user = await authService.login(req.body);
+  const token = signToken(user.id);
+  res.cookie(process.env.COOKIE_NAME, token, cookieOptions());
+  res.json(toSafeUser(user));
+});
+
+const logout = asyncHandler(async (req, res) => {
+  res.clearCookie(process.env.COOKIE_NAME, { ...cookieOptions(), maxAge: undefined });
+  res.status(204).send();
+});
+
+const me = asyncHandler(async (req, res) => {
+  const user = await authService.getById(req.user.id);
+  res.json(toSafeUser(user));
+});
+
+const verifyEmail = asyncHandler(async (req, res) => {
+  await authService.verifyEmail(req.body.token);
+  res.json({ message: "Adresse email vérifiée. Vous pouvez maintenant vous connecter." });
+});
+
+const resendVerification = asyncHandler(async (req, res) => {
+  await authService.resendVerification(req.body.email);
+  res.json({ message: "Si un compte non vérifié existe avec cet email, un lien a été envoyé." });
+});
+
+const forgotPassword = asyncHandler(async (req, res) => {
+  await authService.forgotPassword(req.body.email);
+  res.json({ message: "Si un compte existe avec cet email, un lien de réinitialisation a été envoyé." });
+});
+
+const resetPassword = asyncHandler(async (req, res) => {
+  await authService.resetPassword(req.body.token, req.body.newPassword);
+  res.json({ message: "Mot de passe réinitialisé. Vous pouvez maintenant vous connecter." });
+});
+
+module.exports = {
+  register,
+  login,
+  logout,
+  me,
+  verifyEmail,
+  resendVerification,
+  forgotPassword,
+  resetPassword,
+};

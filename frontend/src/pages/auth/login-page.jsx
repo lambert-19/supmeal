@@ -108,6 +108,12 @@ export function LoginPage() {
           />
         </FormField>
 
+        <p className="text-right text-xs">
+          <Link to="/reset-password" className="font-medium text-primary hover:underline">
+            Mot de passe oublié ?
+          </Link>
+        </p>
+
         {authError && (
           <p className="text-sm text-destructive" role="alert">
             {authError}
