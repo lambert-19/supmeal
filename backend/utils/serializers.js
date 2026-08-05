@@ -77,12 +77,17 @@ function toCommentDTO(comment) {
 }
 
 function toMessageDTO(message) {
+  const receipts = message.receipts ?? [];
   return {
     id: message.id,
     cookbookId: message.cookbookId,
     authorId: message.authorId,
     authorName: message.author.name,
     text: message.text,
+    imageUrl: message.imageUrl,
+    // "Au moins un destinataire" livré/lu — voir messages.service.js#getAggregateReceipts.
+    delivered: receipts.some((r) => r.deliveredAt),
+    read: receipts.some((r) => r.readAt),
     createdAt: message.createdAt,
   };
 }

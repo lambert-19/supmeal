@@ -1,6 +1,7 @@
 import { create } from "zustand"
 
 import { api } from "@/lib/api"
+import { getSocket } from "@/lib/socket"
 
 const DEFAULT_CONNECTIONS = {
   google: false,
@@ -17,6 +18,7 @@ export const useAuthStore = create((set, get) => ({
     try {
       const { data } = await api.get("/auth/me")
       set({ user: data, status: "ready" })
+      getSocket().connect()
     } catch {
       set({ user: null, status: "ready" })
     }
@@ -25,6 +27,7 @@ export const useAuthStore = create((set, get) => ({
   async login({ email, password }) {
     const { data } = await api.post("/auth/login", { email, password })
     set({ user: data })
+    getSocket().connect()
   },
 
   async register({ name, email, password, inviteToken }) {
@@ -34,6 +37,7 @@ export const useAuthStore = create((set, get) => ({
   async logout() {
     await api.post("/auth/logout")
     set({ user: null })
+    getSocket().disconnect()
   },
 
   async updateProfile(values) {
@@ -62,4 +66,5 @@ export const useAuthStore = create((set, get) => ({
 
 window.addEventListener("supmeal:unauthorized", () => {
   useAuthStore.setState({ user: null })
+  getSocket().disconnect()
 })

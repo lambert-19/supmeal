@@ -14,9 +14,10 @@ API REST du backend SUPMEAL. Node.js + Express 5 + Prisma + PostgreSQL, authenti
 - **morgan** pour les logs de requêtes en dev
 - **nodemailer** pour l'envoi des emails de vérification/réinitialisation (voir section dédiée ci-dessous)
 - **multer** pour l'upload d'images de recette (stockage disque, voir section dédiée ci-dessous)
+- **socket.io** pour la messagerie de cookbook en temps réel (voir section dédiée ci-dessous)
 - **swagger-jsdoc + swagger-ui-express** pour la documentation interactive de l'API (voir section dédiée ci-dessous)
 
-**Hors périmètre pour l'instant** (prévu pour une passe suivante, cohérent avec les placeholders déjà présents côté frontend) : OAuth2 Google/GitHub réel, chat temps réel Socket.io.
+**Hors périmètre pour l'instant** (prévu pour une passe suivante, cohérent avec les placeholders déjà présents côté frontend) : OAuth2 Google/GitHub réel.
 
 ## Lancer le projet
 
@@ -50,7 +51,7 @@ Documentation interactive de l'API une fois le serveur lancé : http://localhost
 
 ```
 backend/
-  index.js            point d'entrée : dotenv + app.listen
+  index.js            point d'entrée : dotenv + http.createServer(app) + Socket.io + server.listen
   app.js               construction de l'app Express (helmet, cors, cookie-parser, routers, error handler)
   prisma/
     schema.prisma        modèle de données complet (User, Recipe, Ingredient, Step, Cookbook, CookbookMember,
@@ -72,6 +73,9 @@ backend/
     swagger.js                    définition OpenAPI (schémas, sécurité cookie) + agrégation des annotations
                                   JSDoc `@swagger` présentes dans routes/*.routes.js, servie sur /api-docs
     AppError.js / asyncHandler.js   utilitaires d'erreurs/async
+    socket.js                    Socket.io : authentification de la connexion, rooms par cookbook, diffusion des messages
+    uploadFiles.js               suppression sur disque des images de recette devenues orphelines
+    corsOrigins.js                liste des origines CORS, partagée entre app.js et socket.js
   middleware/
     auth.js                 requireAuth : lit le cookie, vérifie le JWT, attache req.user = { id }
     loadCookbook.js           charge un cookbook + calcule le rôle de l'utilisateur courant (req.cookbook, req.role)
@@ -149,6 +153,31 @@ La spec OpenAPI 3 est générée à partir d'annotations JSDoc `@swagger` direct
 - **Pas de fichiers orphelins** : `recipes.service.js` supprime du disque les images retirées d'une recette lors d'un `PATCH` (diff entre l'ancien et le nouveau tableau `images`) et toutes les images d'une recette lors d'un `DELETE`. Limite connue : une image uploadée puis retirée *avant même la création de la recette* (nouvelle recette jamais soumise) reste orpheline sur le disque — non traité pour l'instant (volume attendu négligeable pour ce projet).
 - Les anciennes recettes créées avant ce changement gardent leurs data URL base64 en base — elles continuent de s'afficher normalement (`<img src>` accepte les deux formats), aucune migration nécessaire.
 
+## Messagerie en temps réel (`utils/socket.js`)
+
+- La messagerie de cookbook (`POST /cookbooks/:id/messages`) reste un endpoint REST classique (persistance, retour immédiat à l'auteur), mais diffuse désormais aussi le message via **Socket.io** à tous les membres actuellement connectés à ce cookbook — plus besoin de recharger la page pour voir un message d'un autre utilisateur.
+- **`index.js`** attache Socket.io au serveur HTTP brut (`http.createServer(app)`, requis par Socket.io pour gérer l'upgrade WebSocket — `app.listen()` seul ne suffit pas), avec le même `CORS_ORIGIN` que l'API REST (`utils/corsOrigins.js`, partagé avec `app.js` pour n'avoir qu'une seule liste d'origines à maintenir).
+- **Authentification de la connexion** (`io.use(authenticate)`) : le cookie de session est lu manuellement depuis les en-têtes de la poignée de main (`socket.handshake.headers.cookie` — pas de `cookie-parser` disponible ici), puis vérifié exactement comme `middleware/auth.js` (JWT + `tokenVersion`, voir section Sécurité) — une connexion sans cookie valide est immédiatement rejetée (`connect_error`).
+- **Rooms par cookbook, jamais globales** : un client ne rejoint `cookbook:<id>` (`socket.emit("cookbook:join", id)`) que si le serveur lui reconnaît un rôle sur ce cookbook (`getCookbookRole`, même garde-fou que `loadCookbookAndRole` côté REST) — sinon la demande est silencieusement ignorée, un utilisateur connecté ne peut donc pas écouter les messages d'un cookbook auquel il n'appartient pas en devinant son id.
+- Le frontend gère lui-même la déduplication (le message posté par son propre auteur arrive à la fois via la réponse HTTP du `POST` et via la rediffusion Socket.io à toute la room, lui y compris).
+- **Stickers/images dans le chat** : `Message.imageUrl` (nullable), `text` a désormais un défaut `""` (message uniquement composé d'un sticker). Un message doit contenir au moins l'un des deux (`text` ou `imageUrl`), validé par un `body().custom(...)` dans `routes/messages.routes.js` — sinon `400`. Le sticker passe par le même endpoint d'upload que les images de recette (`POST /uploads/images`), aucune route dédiée : le frontend uploade d'abord le fichier, puis poste le message avec l'URL renvoyée.
+- Vérifié via 2 scripts Node dédiés : messagerie temps réel (client `socket.io-client`, 8 assertions — connexion sans cookie rejetée, un membre du cookbook reçoit le message en temps réel, un utilisateur jamais invité n'en reçoit aucun) et texte/sticker (4 assertions — message sans texte ni image refusé, texte seul, image seule, cohérence de la liste).
+
+### Présence en ligne (`User.lastSeenAt`, `utils/socket.js`)
+
+- Un `Map<userId, Set<socketId>>` en mémoire (`onlineUsers`) suit les connexions actives — un utilisateur avec plusieurs onglets/appareils ouverts reste "en ligne" tant qu'au moins une socket est connectée, il ne redevient hors ligne qu'à la fermeture de la **dernière**.
+- À la déconnexion de la dernière socket d'un utilisateur (event `disconnecting`, choisi plutôt que `disconnect` car `socket.rooms` est encore renseigné à ce moment), `User.lastSeenAt` est mis à jour en base et un `presence:update` (`{ userId, online: false, lastSeenAt }`) est diffusé à toutes les rooms de cookbook où il était présent.
+- À la connexion/`cookbook:join`, l'appelant reçoit un **snapshot** complet de la présence des membres du cookbook via un callback d'acknowledgement Socket.io (`socket.emit("cookbook:join", id, (snapshot) => ...)`) — en ligne pour les utilisateurs actuellement connectés, `lastSeenAt` (potentiellement `null` si jamais vu) sinon. Les autres membres déjà présents dans la room reçoivent un `presence:update` (`online: true`) annonçant l'arrivée.
+- Vérifié via un script Node dédié (6 assertions) : snapshot initial correct, notification temps réel à la connexion/déconnexion, **non-régression multi-onglets** (fermer un onglet sur deux ne déclenche pas le passage hors ligne), persistance de `lastSeenAt` en base.
+
+### Accusés de réception et "en train d'écrire"
+
+- **`Message.delivered`/`Message.read`** (calculés, pas stockés directement — voir `MessageReceipt` et `utils/serializers.js#toMessageDTO`) : deux coches façon messagerie instantanée. Un message est **livré** dès qu'**au moins un** autre membre du cookbook l'a reçu côté client (fetch initial ou event `message:new`) ; **lu** dès qu'au moins un autre membre l'avait à l'écran avec son onglet visible (Page Visibility API côté client). "Au moins un" plutôt que "tous les membres", plus simple à raisonner pour un chat de groupe à effectif variable.
+- **`MessageReceipt`** (une ligne par `(message, destinataire)`, jamais pour l'auteur lui-même) : `deliveredAt` posé au premier `cookbook:delivered`, `readAt` posé par `cookbook:seen`. Les deux events sont reçus par `utils/socket.js`, qui délègue à `messages.service.js#markReceipts` puis rediffuse l'agrégat (`getAggregateReceipts`) à toute la room via `receipts:update` — le frontend n'a donc jamais besoin de refetch pour voir les coches se mettre à jour.
+- **Garde-fou allégé** : contrairement à `cookbook:join` (qui revérifie le rôle en base), `cookbook:delivered`/`cookbook:seen`/`cookbook:typing` se contentent de vérifier que la socket a déjà rejoint la room (`socket.rooms.has(...)`) — rejoindre exige déjà d'avoir passé la vérification de rôle une fois, pas besoin de la refaire à chaque frappe/accusé de réception.
+- **"En train d'écrire"** (`cookbook:typing` → `typing:update`) : purement éphémère, aucune trace en base, simple relais aux autres membres de la room.
+- Vérifié via un script Node dédié (8 assertions) : état initial (aucune coche), passage livré puis lu avec diffusion temps réel, cohérence avec `GET /cookbooks/:id/messages`, aucun accusé créé pour l'auteur sur son propre message, indicateur de frappe (activation/désactivation), et rejet silencieux d'un `cookbook:typing` envoyé par une socket n'ayant jamais rejoint la room.
+
 ## Vérification
 
 Toutes les routes ont été testées via des scripts Node (`fetch` + assertions) simulant plusieurs comptes (créateur/éditeur/lecteur/étranger) : CRUD complet, filtres de recherche, upsert de planning, et surtout les cas de permissions (accès refusé, tentative de contournement des droits de cookbook via le PATCH générique, visibilité 404 vs 403). Le flux de vérification d'email et de réinitialisation de mot de passe est couvert par 24 assertions dédiées (token invalide/expiré/réutilisé, blocage du login tant que l'email n'est pas vérifié, réponse anti-énumération sur forgot-password). Le flux d'invitation par lien sécurisé est couvert par 32 assertions dédiées (compte existant vs invitation en attente, token invalide/déjà consommé qui n'empêche jamais l'inscription, rôle correctement appliqué une fois le compte créé et vérifié, `inviteTokenHash` jamais exposé). Le durcissement sécurité (IDOR cookbook, CSRF, rate limiting, rotation JWT, validation PATCH) est couvert par 29 assertions dédiées. L'upload d'images est couvert par 14 assertions dédiées (auth/CSRF requis, type de fichier refusé, fichier bien servi publiquement, nettoyage disque au retrait/à la suppression d'une recette). Pas encore de suite de tests automatisés committée (`vitest`/`jest` non installés côté backend) — à ajouter en même temps que le rebranchement du frontend sur cette API. La spec Swagger a été vérifiée en démarrant le serveur et en interrogeant `/api-docs.json` (25 chemins générés, tous les schémas présents) et `/api-docs` (rendu HTML de swagger-ui confirmé).
@@ -156,7 +185,6 @@ Toutes les routes ont été testées via des scripts Node (`fetch` + assertions)
 ## À venir
 
 - OAuth2 Google/GitHub réel (Passport, déjà en dépendance) — nécessite la création d'applications OAuth (Google Cloud Console / GitHub Developer Settings) pour obtenir un client ID/secret.
-- Socket.io pour la messagerie en temps réel (actuellement REST classique, il faut recharger pour voir un message d'un autre utilisateur).
 - SMS pour les invitations de cookbook : écarté volontairement (tout fournisseur fiable est payant), email uniquement pour l'instant.
 - Docker (`dockerfile` et `docker-compose.yaml` encore vides).
 - Secrets historiques dans l'historique Git (mot de passe Postgres exposé dans un ancien commit supprimé depuis) — à traiter indépendamment (rotation du mot de passe, éventuelle réécriture d'historique).

@@ -32,6 +32,7 @@ model User {
   passwordHash    String
   tokenVersion    Int       @default(0) // incrémenté au changement de mot de passe : invalide tous les JWT déjà émis
   emailVerified   Boolean   @default(false)
+  lastSeenAt      DateTime? // mis à jour quand la dernière socket de l'utilisateur se déconnecte (présence en ligne)
   dietaryRegime   String    @default("none")
   allergies       String[]  @default([])
   favoriteCuisine String    @default("none")
@@ -48,6 +49,7 @@ model User {
   comments            Comment[]
   messages            Message[]
   verificationTokens  VerificationToken[]
+  messageReceipts     MessageReceipt[]
 }
 
 model VerificationToken {
@@ -173,8 +175,29 @@ model Message {
   cookbook   Cookbook @relation(fields: [cookbookId], references: [id], onDelete: Cascade)
   authorId   String
   author     User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  text       String
+  text       String   @default("") // vide pour un message uniquement composé d'un sticker
+  imageUrl   String? // sticker/image envoyé dans le chat (même pipeline d'upload que les recettes)
   createdAt  DateTime @default(now())
 
+  receipts MessageReceipt[]
+
   @@index([cookbookId])
+}
+
+// Un accusé par (message, destinataire) — jamais créé pour l'auteur lui-même.
+// deliveredAt : la donnée a atteint le client (fetch ou socket "message:new").
+// readAt : en plus, l'onglet du destinataire était visible à ce moment-là
+// (Page Visibility API) — distinction volontaire pour permettre les deux
+// coches (livré vs lu) plutôt qu'un seul état binaire.
+model MessageReceipt {
+  id          String    @id @default(cuid())
+  messageId   String
+  message     Message   @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deliveredAt DateTime?
+  readAt      DateTime?
+
+  @@unique([messageId, userId])
+  @@index([messageId])
 }

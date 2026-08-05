@@ -17,8 +17,7 @@ const planningRoutes = require("./routes/planning.routes");
 const commentsRoutes = require("./routes/comments.routes");
 const messagesRoutes = require("./routes/messages.routes");
 const uploadsRoutes = require("./routes/uploads.routes");
-
-const allowedOrigins = (process.env.CORS_ORIGIN || "").split(",").map((origin) => origin.trim()).filter(Boolean);
+const allowedOrigins = require("./utils/corsOrigins");
 
 const app = express();
 

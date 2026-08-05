@@ -49,7 +49,7 @@ function renderEmailLayout({ preheader = "", title, bodyHtml, footerNote = "" })
             <tr>
               <td style="padding: 20px 32px; background-color: ${BG_COLOR}; border-top: 1px solid ${BORDER_COLOR}; color: ${MUTED_COLOR}; font-size: 12px; line-height: 1.6;">
                 ${footerNote ? `<p style="margin: 0 0 8px;">${footerNote}</p>` : ""}
-                <p style="margin: 0;">© ${new Date().getFullYear()} SUPMEAL — projet étudiant. Vous recevez cet email suite à une action effectuée sur supmeal.fr.</p>
+                <p style="margin: 0;">© ${new Date().getFullYear()} SUPMEAL — Tous droits reservés. Vous recevez cet email suite à une action effectuée sur supmeal.fr.</p>
               </td>
             </tr>
           </table>

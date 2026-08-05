@@ -44,8 +44,10 @@ router.use(csrfProtection);
  *         application/json:
  *           schema:
  *             type: object
- *             required: [text]
- *             properties: { text: { type: string, minLength: 1 } }
+ *             description: Au moins un des deux champs (`text` ou `imageUrl`) est requis.
+ *             properties:
+ *               text: { type: string }
+ *               imageUrl: { type: string, description: "URL renvoyée par POST /uploads/images (sticker/image)" }
  *     responses:
  *       201:
  *         description: Message créé.
@@ -59,7 +61,16 @@ router.get("/cookbooks/:id/messages", loadCookbookAndRole, messagesController.li
 router.post(
   "/cookbooks/:id/messages",
   loadCookbookAndRole,
-  [body("text").trim().isLength({ min: 1 }).withMessage("Le message ne peut pas être vide.")],
+  [
+    body("text").optional().trim().isString(),
+    body("imageUrl").optional().isString(),
+    body().custom((value) => {
+      if (!value.text?.trim() && !value.imageUrl) {
+        throw new Error("Le message doit contenir du texte ou une image.");
+      }
+      return true;
+    }),
+  ],
   validate,
   messagesController.create
 );

@@ -29,10 +29,12 @@ import { EmptyState } from "@/components/empty-state"
 import { useAuthStore } from "@/lib/stores/auth-store"
 import { useRecipesStore } from "@/lib/stores/recipes-store"
 import { useMyRecipes } from "@/hooks/use-my-recipes"
+import { useCookbookPresence } from "@/hooks/use-cookbook-presence"
 import { api, apiErrorMessage } from "@/lib/api"
 import { canManageCookbook, canEditRecipes, canComment } from "@/lib/cookbook-permissions"
 import { COOKBOOK_ROLES } from "@/lib/constants/cookbook"
 import { inviteMemberSchema } from "@/lib/schemas/cookbook"
+import { cn, formatLastSeen } from "@/lib/utils"
 
 const ROLE_LABELS = {
   creator: "Créateur",
@@ -51,6 +53,7 @@ function CookbookDetailContent({ id }) {
   const user = useAuthStore((s) => s.user)
   const fetchRecipes = useRecipesStore((s) => s.fetchAll)
   const myRecipes = useMyRecipes()
+  const presence = useCookbookPresence(id)
   const navigate = useNavigate()
 
   const [cookbook, setCookbook] = useState(null)
@@ -256,6 +259,7 @@ function CookbookDetailContent({ id }) {
             const isSelf =
               (member.userId && member.userId === user.id) || member.email.toLowerCase() === user.email.toLowerCase()
             const isOwnerRow = member.role === "creator"
+            const memberPresence = member.userId ? presence[member.userId] : undefined
             return (
               <div
                 key={member.id}
@@ -273,6 +277,14 @@ function CookbookDetailContent({ id }) {
                       </Badge>
                     )}
                   </div>
+                  {memberPresence && (
+                    <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <span
+                        className={cn("size-1.5 rounded-full", memberPresence.online ? "bg-green-500" : "bg-muted-foreground/40")}
+                      />
+                      {memberPresence.online ? "En ligne" : memberPresence.lastSeenAt ? `Vu ${formatLastSeen(memberPresence.lastSeenAt)}` : "Hors ligne"}
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-2">
