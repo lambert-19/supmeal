@@ -21,6 +21,7 @@ const recipeValidation = [
   body("cookTime").isInt({ min: 0 }).withMessage("Doit être positif ou nul."),
   body("servings").isInt({ min: 1, max: 50 }).withMessage("Entre 1 et 50 portions."),
   body("images").optional().isArray({ max: 10 }).withMessage("10 images maximum."),
+  body("images.*").optional().isString(),
 ];
 
 // PATCH : mêmes règles que la création, mais chaque champ est optionnel
@@ -35,6 +36,7 @@ const recipeUpdateValidation = [
   body("cookTime").optional().isInt({ min: 0 }).withMessage("Doit être positif ou nul."),
   body("servings").optional().isInt({ min: 1, max: 50 }).withMessage("Entre 1 et 50 portions."),
   body("images").optional().isArray({ max: 10 }).withMessage("10 images maximum."),
+  body("images.*").optional().isString(),
   body("tags").optional().isArray().withMessage("Format de tags invalide."),
   body("source").optional().isString(),
 ];

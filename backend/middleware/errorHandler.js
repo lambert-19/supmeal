@@ -1,3 +1,4 @@
+const multer = require("multer");
 const AppError = require("../utils/AppError");
 
 const PRISMA_STATUS_BY_CODE = {
@@ -6,9 +7,19 @@ const PRISMA_STATUS_BY_CODE = {
   P2003: 400,
 };
 
+const MULTER_MESSAGE_BY_CODE = {
+  LIMIT_FILE_SIZE: "Image trop lourde (2 Mo maximum).",
+  LIMIT_FILE_COUNT: "Trop d'images (10 maximum).",
+  LIMIT_UNEXPECTED_FILE: "Trop d'images (10 maximum).",
+};
+
 function errorHandler(err, req, res, next) {
   if (err instanceof AppError) {
     return res.status(err.statusCode).json({ message: err.message, details: err.details });
+  }
+
+  if (err instanceof multer.MulterError) {
+    return res.status(400).json({ message: MULTER_MESSAGE_BY_CODE[err.code] || "Échec de l'envoi du fichier." });
   }
 
   if (err.code && PRISMA_STATUS_BY_CODE[err.code]) {

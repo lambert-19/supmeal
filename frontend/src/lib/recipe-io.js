@@ -58,6 +58,10 @@ export function exportRecipesAsMealie(recipes) {
       ),
       recipeInstructions: recipe.steps.map((step) => ({ text: step.text })),
       tags: recipe.tags.map((tag) => ({ name: tag })),
+      // Le vrai Mealie ne gère qu'une image principale ; comme ce format est
+      // déjà une approximation (voir README), on exporte le tableau complet
+      // plutôt que de n'en garder qu'une seule.
+      images: recipe.images,
       orgURL: recipe.source || null,
     })),
     null,
@@ -74,7 +78,7 @@ function normalizeCandidate(raw) {
     cookTime: Number(raw.cookTime ?? raw.performTime) || 0,
     servings: Number(raw.servings ?? raw.recipeYield) || 1,
     tags: [],
-    images: Array.isArray(raw.images) ? raw.images.slice(0, MAX_IMAGES) : [],
+    images: Array.isArray(raw.images) ? raw.images.slice(0, MAX_IMAGES) : [raw.image].filter(Boolean),
     source: String(raw.source ?? raw.orgURL ?? "").trim(),
   }
 

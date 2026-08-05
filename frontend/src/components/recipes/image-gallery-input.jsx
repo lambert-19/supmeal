@@ -1,22 +1,15 @@
-import { useCallback } from "react"
+import { useCallback, useState } from "react"
 import { useDropzone } from "react-dropzone"
-import { ImagePlus, X } from "lucide-react"
+import { ImagePlus, Loader2, X } from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { api, apiErrorMessage } from "@/lib/api"
 import { MAX_IMAGES, MAX_IMAGE_SIZE_BYTES } from "@/lib/constants/recipe"
 
-function readFileAsDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result)
-    reader.onerror = reject
-    reader.readAsDataURL(file)
-  })
-}
-
 export function ImageGalleryInput({ value, onChange, className }) {
+  const [uploading, setUploading] = useState(false)
   const remainingSlots = MAX_IMAGES - value.length
 
   const onDrop = useCallback(
@@ -33,8 +26,19 @@ export function ImageGalleryInput({ value, onChange, className }) {
         return true
       })
       if (validFiles.length === 0) return
-      const dataUrls = await Promise.all(validFiles.map(readFileAsDataUrl))
-      onChange([...value, ...dataUrls])
+
+      const formData = new FormData()
+      validFiles.forEach((file) => formData.append("images", file))
+
+      setUploading(true)
+      try {
+        const { data } = await api.post("/uploads/images", formData)
+        onChange([...value, ...data.urls])
+      } catch (error) {
+        toast.error(apiErrorMessage(error, "Échec de l'envoi des images."))
+      } finally {
+        setUploading(false)
+      }
     },
     [remainingSlots, value, onChange]
   )
@@ -42,6 +46,7 @@ export function ImageGalleryInput({ value, onChange, className }) {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: { "image/*": [] },
+    disabled: uploading,
   })
 
   function removeImage(index) {
@@ -52,9 +57,7 @@ export function ImageGalleryInput({ value, onChange, className }) {
     <div className={cn("space-y-1.5", className)}>
       <div className="flex flex-wrap gap-2">
         {value.map((src, index) => (
-          <div
-            key={index}
-            className="relative aspect-4/3 w-32 shrink-0 overflow-hidden rounded-lg border border-border bg-muted">
+          <div key={src} className="relative aspect-4/3 w-32 shrink-0 overflow-hidden rounded-lg border border-border bg-muted">
             <img src={src} alt={`Aperçu ${index + 1}`} className="size-full object-cover" loading="lazy" />
             <Button
               type="button"
@@ -73,11 +76,16 @@ export function ImageGalleryInput({ value, onChange, className }) {
             {...getRootProps()}
             className={cn(
               "flex aspect-4/3 w-32 shrink-0 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-border text-center transition-colors hover:bg-muted/50",
-              isDragActive && "border-primary bg-primary/5"
+              isDragActive && "border-primary bg-primary/5",
+              uploading && "pointer-events-none opacity-60"
             )}>
             <input {...getInputProps()} />
-            <ImagePlus className="size-5 text-muted-foreground" />
-            <span className="text-[11px] text-muted-foreground">Ajouter</span>
+            {uploading ? (
+              <Loader2 className="size-5 animate-spin text-muted-foreground" />
+            ) : (
+              <ImagePlus className="size-5 text-muted-foreground" />
+            )}
+            <span className="text-[11px] text-muted-foreground">{uploading ? "Envoi..." : "Ajouter"}</span>
           </div>
         )}
       </div>

@@ -1,5 +1,6 @@
 const prisma = require("../utils/prisma");
 const AppError = require("../utils/AppError");
+const { deleteUploadedImages } = require("../utils/uploadFiles");
 
 const RECIPE_INCLUDE = { ingredients: true, steps: true, cookbook: { select: { id: true, name: true } } };
 
@@ -68,7 +69,7 @@ async function update(id, ownerId, patch) {
   const recipe = await getById(id);
   if (recipe.ownerId !== ownerId) throw new AppError(403, "Vous n'êtes pas propriétaire de cette recette.");
 
-  return prisma.$transaction(async (tx) => {
+  const updated = await prisma.$transaction(async (tx) => {
     if (patch.ingredients) {
       await tx.ingredient.deleteMany({ where: { recipeId: id } });
     }
@@ -95,12 +96,22 @@ async function update(id, ownerId, patch) {
       include: RECIPE_INCLUDE,
     });
   });
+
+  // Images retirées de la recette (remplacées ou supprimées) : plus aucune
+  // référence en base, on peut supprimer les fichiers correspondants du disque.
+  if (patch.images !== undefined) {
+    const removedImages = recipe.images.filter((img) => !patch.images.includes(img));
+    deleteUploadedImages(removedImages);
+  }
+
+  return updated;
 }
 
 async function remove(id, ownerId) {
   const recipe = await getById(id);
   if (recipe.ownerId !== ownerId) throw new AppError(403, "Vous n'êtes pas propriétaire de cette recette.");
   await prisma.recipe.delete({ where: { id } });
+  deleteUploadedImages(recipe.images);
 }
 
 async function toggleFavorite(id, ownerId) {

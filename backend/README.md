@@ -13,9 +13,10 @@ API REST du backend SUPMEAL. Node.js + Express 5 + Prisma + PostgreSQL, authenti
 - **helmet**, **cors** (avec `credentials: true`) pour la sécurité de base, protection **CSRF** en double-submit cookie sur toutes les routes authentifiées mutantes
 - **morgan** pour les logs de requêtes en dev
 - **nodemailer** pour l'envoi des emails de vérification/réinitialisation (voir section dédiée ci-dessous)
+- **multer** pour l'upload d'images de recette (stockage disque, voir section dédiée ci-dessous)
 - **swagger-jsdoc + swagger-ui-express** pour la documentation interactive de l'API (voir section dédiée ci-dessous)
 
-**Hors périmètre pour l'instant** (prévu pour une passe suivante, cohérent avec les placeholders déjà présents côté frontend) : OAuth2 Google/GitHub réel, chat temps réel Socket.io, upload d'images via `multer` (les images restent des data URL base64 stockées telles quelles).
+**Hors périmètre pour l'instant** (prévu pour une passe suivante, cohérent avec les placeholders déjà présents côté frontend) : OAuth2 Google/GitHub réel, chat temps réel Socket.io.
 
 ## Lancer le projet
 
@@ -138,17 +139,24 @@ La spec OpenAPI 3 est générée à partir d'annotations JSDoc `@swagger` direct
 | Planning | `PUT /planning` (upsert sur `ownerId+date+mealSlot`), `GET /planning?from=&to=`, `DELETE /planning/:id` |
 | Commentaires | `GET/POST /recipes/:id/comments`, `DELETE /comments/:commentId` |
 | Messages | `GET/POST /cookbooks/:id/messages` |
+| Uploads | `POST /uploads/images` (multipart, retourne des URLs), `GET /uploads/:fichier` (statique, public) |
+
+## Upload d'images (`middleware/upload.js`, `utils/uploadFiles.js`)
+
+- Les images de recette ne sont plus stockées en data URL base64 dans `Recipe.images` : le frontend envoie les fichiers à `POST /uploads/images` (`multipart/form-data`, champ `images`, jusqu'à 10 fichiers, 2 Mo max chacun, jpeg/png/webp/gif uniquement — `multer` avec stockage disque dans `backend/uploads/`, non committé), qui répond avec des URLs absolues (`${BACKEND_URL}/uploads/<fichier>.<ext>`) à réutiliser telles quelles dans le corps de `POST/PATCH /recipes/:id`.
+- **Nom de fichier jamais dérivé de l'entrée utilisateur** : généré côté serveur (`crypto.randomBytes`), extension dérivée du *mimetype détecté par multer* (pas du nom de fichier fourni par le client) — évite qu'un fichier malveillant se fasse passer pour une image via une extension trompeuse.
+- **Lecture publique, écriture authentifiée** : `GET /uploads/:fichier` (servi par `express.static`) ne demande pas de session — comportement standard pour des photos de recette destinées à être affichées/partagées — alors que `POST /uploads/images` exige une session valide et le jeton CSRF, comme le reste des routes mutantes.
+- **Pas de fichiers orphelins** : `recipes.service.js` supprime du disque les images retirées d'une recette lors d'un `PATCH` (diff entre l'ancien et le nouveau tableau `images`) et toutes les images d'une recette lors d'un `DELETE`. Limite connue : une image uploadée puis retirée *avant même la création de la recette* (nouvelle recette jamais soumise) reste orpheline sur le disque — non traité pour l'instant (volume attendu négligeable pour ce projet).
+- Les anciennes recettes créées avant ce changement gardent leurs data URL base64 en base — elles continuent de s'afficher normalement (`<img src>` accepte les deux formats), aucune migration nécessaire.
 
 ## Vérification
 
-Toutes les routes ont été testées via des scripts Node (`fetch` + assertions) simulant plusieurs comptes (créateur/éditeur/lecteur/étranger) : CRUD complet, filtres de recherche, upsert de planning, et surtout les cas de permissions (accès refusé, tentative de contournement des droits de cookbook via le PATCH générique, visibilité 404 vs 403). Le flux de vérification d'email et de réinitialisation de mot de passe est couvert par 24 assertions dédiées (token invalide/expiré/réutilisé, blocage du login tant que l'email n'est pas vérifié, réponse anti-énumération sur forgot-password). Le flux d'invitation par lien sécurisé est couvert par 32 assertions dédiées (compte existant vs invitation en attente, token invalide/déjà consommé qui n'empêche jamais l'inscription, rôle correctement appliqué une fois le compte créé et vérifié, `inviteTokenHash` jamais exposé). Pas encore de suite de tests automatisés committée (`vitest`/`jest` non installés côté backend) — à ajouter en même temps que le rebranchement du frontend sur cette API. La spec Swagger a été vérifiée en démarrant le serveur et en interrogeant `/api-docs.json` (25 chemins générés, tous les schémas présents) et `/api-docs` (rendu HTML de swagger-ui confirmé).
+Toutes les routes ont été testées via des scripts Node (`fetch` + assertions) simulant plusieurs comptes (créateur/éditeur/lecteur/étranger) : CRUD complet, filtres de recherche, upsert de planning, et surtout les cas de permissions (accès refusé, tentative de contournement des droits de cookbook via le PATCH générique, visibilité 404 vs 403). Le flux de vérification d'email et de réinitialisation de mot de passe est couvert par 24 assertions dédiées (token invalide/expiré/réutilisé, blocage du login tant que l'email n'est pas vérifié, réponse anti-énumération sur forgot-password). Le flux d'invitation par lien sécurisé est couvert par 32 assertions dédiées (compte existant vs invitation en attente, token invalide/déjà consommé qui n'empêche jamais l'inscription, rôle correctement appliqué une fois le compte créé et vérifié, `inviteTokenHash` jamais exposé). Le durcissement sécurité (IDOR cookbook, CSRF, rate limiting, rotation JWT, validation PATCH) est couvert par 29 assertions dédiées. L'upload d'images est couvert par 14 assertions dédiées (auth/CSRF requis, type de fichier refusé, fichier bien servi publiquement, nettoyage disque au retrait/à la suppression d'une recette). Pas encore de suite de tests automatisés committée (`vitest`/`jest` non installés côté backend) — à ajouter en même temps que le rebranchement du frontend sur cette API. La spec Swagger a été vérifiée en démarrant le serveur et en interrogeant `/api-docs.json` (25 chemins générés, tous les schémas présents) et `/api-docs` (rendu HTML de swagger-ui confirmé).
 
 ## À venir
 
-- Rebrancher le reste du frontend (`frontend/src/lib/stores/*.js`) sur cette API à la place du mock `localStorage` — les méthodes des stores ont été conçues en miroir des endpoints ci-dessus pour rendre ce rebranchement direct. Les pages `/verify-email` et `/reset-password` sont déjà branchées sur la vraie API (voir `frontend/README.md`) ; le reste (recettes, cookbooks, planning...) tourne encore sur le mock. L'UI d'invitation de cookbook (`cookbook-detail-page.jsx`) reste également mock, pas encore branchée sur `POST /cookbooks/:id/members`.
-- OAuth2 Google/GitHub réel (Passport, déjà en dépendance).
-- Socket.io pour la messagerie en temps réel.
-- Upload d'images via `multer` (actuellement data URL base64 stockées en base).
+- OAuth2 Google/GitHub réel (Passport, déjà en dépendance) — nécessite la création d'applications OAuth (Google Cloud Console / GitHub Developer Settings) pour obtenir un client ID/secret.
+- Socket.io pour la messagerie en temps réel (actuellement REST classique, il faut recharger pour voir un message d'un autre utilisateur).
 - SMS pour les invitations de cookbook : écarté volontairement (tout fournisseur fiable est payant), email uniquement pour l'instant.
-- Configuration SMTP réelle en production (actuellement simulée en dev).
 - Docker (`dockerfile` et `docker-compose.yaml` encore vides).
+- Secrets historiques dans l'historique Git (mot de passe Postgres exposé dans un ancien commit supprimé depuis) — à traiter indépendamment (rotation du mot de passe, éventuelle réécriture d'historique).
