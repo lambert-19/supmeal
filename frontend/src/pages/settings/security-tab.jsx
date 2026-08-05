@@ -4,7 +4,8 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { PasswordInput } from "@/components/password-input"
+import { PasswordStrengthMeter } from "@/components/password-strength-meter"
 import { FormField } from "@/components/form-field"
 import { useAuthStore } from "@/lib/stores/auth-store"
 import { apiErrorMessage } from "@/lib/api"
@@ -18,11 +19,13 @@ export function SecurityTab() {
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: zodResolver(passwordSchema),
     defaultValues: { currentPassword: "", newPassword: "", confirmNewPassword: "" },
   })
+  const passwordValue = watch("newPassword")
 
   async function onSubmit(values) {
     setFormError(null)
@@ -41,9 +44,8 @@ export function SecurityTab() {
         id="currentPassword"
         label="Mot de passe actuel"
         error={errors.currentPassword?.message}>
-        <Input
+        <PasswordInput
           id="currentPassword"
-          type="password"
           autoComplete="current-password"
           aria-invalid={!!errors.currentPassword}
           {...register("currentPassword")}
@@ -51,23 +53,22 @@ export function SecurityTab() {
       </FormField>
 
       <FormField id="newPassword" label="Nouveau mot de passe" error={errors.newPassword?.message}>
-        <Input
+        <PasswordInput
           id="newPassword"
-          type="password"
           autoComplete="new-password"
           placeholder="8 caractères minimum"
           aria-invalid={!!errors.newPassword}
           {...register("newPassword")}
         />
+        <PasswordStrengthMeter value={passwordValue} />
       </FormField>
 
       <FormField
         id="confirmNewPassword"
         label="Confirmer le nouveau mot de passe"
         error={errors.confirmNewPassword?.message}>
-        <Input
+        <PasswordInput
           id="confirmNewPassword"
-          type="password"
           autoComplete="new-password"
           aria-invalid={!!errors.confirmNewPassword}
           {...register("confirmNewPassword")}

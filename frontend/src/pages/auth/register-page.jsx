@@ -7,6 +7,8 @@ import { MailCheck } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { PasswordInput } from "@/components/password-input"
+import { PasswordStrengthMeter } from "@/components/password-strength-meter"
 import { FormField } from "@/components/form-field"
 import { MotionPress } from "@/components/motion-press"
 import { useAuthStore } from "@/lib/stores/auth-store"
@@ -25,11 +27,13 @@ export function RegisterPage() {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: zodResolver(registerSchema),
     defaultValues: { name: "", email: "", password: "", confirmPassword: "" },
   })
+  const passwordValue = watch("password")
 
   async function onSubmit(values) {
     setAuthError(null)
@@ -109,23 +113,22 @@ export function RegisterPage() {
         </FormField>
 
         <FormField id="password" label="Mot de passe" error={errors.password?.message}>
-          <Input
+          <PasswordInput
             id="password"
-            type="password"
             autoComplete="new-password"
             placeholder="8 caractères minimum"
             aria-invalid={!!errors.password}
             {...register("password")}
           />
+          <PasswordStrengthMeter value={passwordValue} />
         </FormField>
 
         <FormField
           id="confirmPassword"
           label="Confirmer le mot de passe"
           error={errors.confirmPassword?.message}>
-          <Input
+          <PasswordInput
             id="confirmPassword"
-            type="password"
             autoComplete="new-password"
             placeholder="••••••••"
             aria-invalid={!!errors.confirmPassword}

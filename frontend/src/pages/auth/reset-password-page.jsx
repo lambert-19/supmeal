@@ -7,6 +7,8 @@ import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { PasswordInput } from "@/components/password-input"
+import { PasswordStrengthMeter } from "@/components/password-strength-meter"
 import { FormField } from "@/components/form-field"
 import { MotionPress } from "@/components/motion-press"
 import { api, apiErrorMessage } from "@/lib/api"
@@ -79,11 +81,13 @@ function NewPasswordForm({ token }) {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: zodResolver(resetPasswordSchema),
     defaultValues: { newPassword: "", confirmNewPassword: "" },
   })
+  const passwordValue = watch("newPassword")
 
   async function onSubmit(values) {
     setFormError(null)
@@ -103,22 +107,21 @@ function NewPasswordForm({ token }) {
       className="space-y-4"
       noValidate>
       <FormField id="newPassword" label="Nouveau mot de passe" error={errors.newPassword?.message}>
-        <Input
+        <PasswordInput
           id="newPassword"
-          type="password"
           autoComplete="new-password"
           placeholder="8 caractères minimum"
           aria-invalid={!!errors.newPassword}
           {...register("newPassword")}
         />
+        <PasswordStrengthMeter value={passwordValue} />
       </FormField>
       <FormField
         id="confirmNewPassword"
         label="Confirmer le nouveau mot de passe"
         error={errors.confirmNewPassword?.message}>
-        <Input
+        <PasswordInput
           id="confirmNewPassword"
-          type="password"
           autoComplete="new-password"
           placeholder="••••••••"
           aria-invalid={!!errors.confirmNewPassword}

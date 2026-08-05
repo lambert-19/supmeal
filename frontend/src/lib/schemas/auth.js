@@ -1,5 +1,7 @@
 import { z } from "zod"
 
+import { PASSWORD_MESSAGE, meetsPasswordRequirements } from "@/lib/password-strength"
+
 export const loginSchema = z.object({
   email: z.string().min(1, "L'adresse email est requise.").email("Adresse email invalide."),
   password: z.string().min(1, "Le mot de passe est requis."),
@@ -9,7 +11,7 @@ export const registerSchema = z
   .object({
     name: z.string().min(2, "Le nom doit contenir au moins 2 caractères."),
     email: z.string().min(1, "L'adresse email est requise.").email("Adresse email invalide."),
-    password: z.string().min(8, "8 caractères minimum."),
+    password: z.string().min(8, "8 caractères minimum.").refine(meetsPasswordRequirements, PASSWORD_MESSAGE),
     confirmPassword: z.string().min(1, "Merci de confirmer le mot de passe."),
   })
   .refine((data) => data.password === data.confirmPassword, {
@@ -23,7 +25,7 @@ export const emailOnlySchema = z.object({
 
 export const resetPasswordSchema = z
   .object({
-    newPassword: z.string().min(8, "8 caractères minimum."),
+    newPassword: z.string().min(8, "8 caractères minimum.").refine(meetsPasswordRequirements, PASSWORD_MESSAGE),
     confirmNewPassword: z.string().min(1, "Merci de confirmer le mot de passe."),
   })
   .refine((data) => data.newPassword === data.confirmNewPassword, {

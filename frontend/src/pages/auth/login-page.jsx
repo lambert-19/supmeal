@@ -7,6 +7,7 @@ import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { PasswordInput } from "@/components/password-input"
 import { Separator } from "@/components/ui/separator"
 import { FormField } from "@/components/form-field"
 import { MotionPress } from "@/components/motion-press"
@@ -99,9 +100,8 @@ export function LoginPage() {
         </FormField>
 
         <FormField id="password" label="Mot de passe" error={errors.password?.message}>
-          <Input
+          <PasswordInput
             id="password"
-            type="password"
             autoComplete="current-password"
             placeholder="••••••••"
             aria-invalid={!!errors.password}
