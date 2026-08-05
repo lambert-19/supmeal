@@ -56,7 +56,7 @@ async function register({ name, email, password, inviteToken }) {
 
 async function login({ email, password }) {
   const normalizedEmail = email.trim().toLowerCase();
-  const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+  const user = await prisma.user.findUnique({ where: { email: normalizedEmail }, include: { oauthAccounts: true } });
   if (!user) throw new AppError(401, "Email ou mot de passe incorrect.");
 
   const valid = await comparePassword(password, user.passwordHash);
@@ -70,7 +70,7 @@ async function login({ email, password }) {
 }
 
 async function getById(id) {
-  const user = await prisma.user.findUnique({ where: { id } });
+  const user = await prisma.user.findUnique({ where: { id }, include: { oauthAccounts: true } });
   if (!user) throw new AppError(404, "Utilisateur introuvable.");
   return user;
 }
@@ -107,7 +107,9 @@ async function resetPassword(rawToken, newPassword) {
   // passe (ex. un JWT volé) dès la réinitialisation, sans attendre son expiration.
   await prisma.user.update({
     where: { id: token.userId },
-    data: { passwordHash, tokenVersion: { increment: 1 } },
+    // hasPassword: true couvre le cas d'un compte créé via OAuth2 (mot de
+    // passe aléatoire jusque-là) qui définit ici son premier vrai mot de passe.
+    data: { passwordHash, tokenVersion: { increment: 1 }, hasPassword: true },
   });
 }
 

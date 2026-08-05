@@ -44,6 +44,10 @@ const definition = {
           id: { type: "string" },
           name: { type: "string" },
           email: { type: "string", format: "email" },
+          hasPassword: {
+            type: "boolean",
+            description: "Faux pour un compte créé via OAuth2 tant qu'aucun vrai mot de passe n'a été défini.",
+          },
           preferences: {
             type: "object",
             properties: {

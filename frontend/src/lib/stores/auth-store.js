@@ -3,11 +3,6 @@ import { create } from "zustand"
 import { api } from "@/lib/api"
 import { getSocket } from "@/lib/socket"
 
-const DEFAULT_CONNECTIONS = {
-  google: false,
-  github: false,
-}
-
 export const useAuthStore = create((set, get) => ({
   user: null,
   status: "idle", // idle | loading | ready
@@ -54,13 +49,9 @@ export const useAuthStore = create((set, get) => ({
     set({ user: data })
   },
 
-  // Pas de flux OAuth2 réel côté serveur pour l'instant (voir backend/README.md
-  // "À venir") : bascule purement locale, ne survit pas à un rechargement.
-  toggleOAuthConnection(provider) {
-    const { user } = get()
-    if (!user) return
-    const connections = { ...(user.connections ?? DEFAULT_CONNECTIONS), [provider]: !user.connections?.[provider] }
-    set({ user: { ...user, connections } })
+  async disconnectOAuthProvider(provider) {
+    const { data } = await api.delete(`/users/me/oauth/${provider}`)
+    set({ user: data })
   },
 }))
 

@@ -1,8 +1,10 @@
 function toSafeUser(user) {
+  const oauthAccounts = user.oauthAccounts ?? [];
   return {
     id: user.id,
     name: user.name,
     email: user.email,
+    hasPassword: user.hasPassword,
     preferences: {
       dietaryRegime: user.dietaryRegime,
       allergies: user.allergies,
@@ -10,8 +12,8 @@ function toSafeUser(user) {
       defaultServings: user.defaultServings,
     },
     connections: {
-      google: user.connectedGoogle,
-      github: user.connectedGithub,
+      google: oauthAccounts.some((a) => a.provider === "google"),
+      github: oauthAccounts.some((a) => a.provider === "github"),
     },
   };
 }

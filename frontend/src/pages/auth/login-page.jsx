@@ -1,5 +1,5 @@
-import { useState } from "react"
-import { Link, useLocation, useNavigate } from "react-router-dom"
+import { useEffect, useState } from "react"
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { motion, useReducedMotion } from "framer-motion"
@@ -14,20 +14,36 @@ import { MotionPress } from "@/components/motion-press"
 import { GoogleIcon } from "@/components/icons/google-icon"
 import { GithubIcon } from "@/components/icons/github-icon"
 import { useAuthStore } from "@/lib/stores/auth-store"
-import { apiErrorMessage } from "@/lib/api"
+import { apiErrorMessage, oauthStartUrl } from "@/lib/api"
 import { loginSchema } from "@/lib/schemas/auth"
 import { FORM_STAGGER_CONTAINER_VARIANTS, FORM_STAGGER_ITEM_VARIANTS } from "@/lib/motion-variants"
 
-function notifyOAuthComingSoon(provider) {
-  toast.info(`La connexion via ${provider} arrivera bientôt.`)
+const OAUTH_ERROR_MESSAGES = {
+  not_configured: "Cette connexion n'est pas encore configurée côté serveur.",
+  access_denied: "Connexion annulée.",
+  email_unavailable: "Ce fournisseur n'a communiqué aucune adresse email vérifiée.",
+  state_mismatch: "La session de connexion a expiré, merci de réessayer.",
+  unknown_provider: "Fournisseur inconnu.",
+  oauth_failed: "La connexion a échoué, merci de réessayer.",
 }
 
 export function LoginPage() {
   const login = useAuthStore((s) => s.login)
   const navigate = useNavigate()
   const location = useLocation()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [authError, setAuthError] = useState(null)
   const prefersReducedMotion = useReducedMotion()
+
+  useEffect(() => {
+    const oauthError = searchParams.get("oauthError")
+    if (!oauthError) return
+    toast.error(OAUTH_ERROR_MESSAGES[oauthError] ?? OAUTH_ERROR_MESSAGES.oauth_failed)
+    setSearchParams((current) => {
+      current.delete("oauthError")
+      return current
+    }, { replace: true })
+  }, [searchParams, setSearchParams])
 
   const {
     register,
@@ -64,13 +80,13 @@ export function LoginPage() {
 
       <motion.div variants={prefersReducedMotion ? undefined : FORM_STAGGER_ITEM_VARIANTS} className="grid grid-cols-2 gap-2.5">
         <MotionPress>
-          <Button variant="outline" type="button" className="w-full" onClick={() => notifyOAuthComingSoon("Google")}>
+          <Button variant="outline" className="w-full" render={<a href={oauthStartUrl("google")} />} nativeButton={false}>
             <GoogleIcon />
             Google
           </Button>
         </MotionPress>
         <MotionPress>
-          <Button variant="outline" type="button" className="w-full" onClick={() => notifyOAuthComingSoon("GitHub")}>
+          <Button variant="outline" className="w-full" render={<a href={oauthStartUrl("github")} />} nativeButton={false}>
             <GithubIcon className="size-4" />
             GitHub
           </Button>

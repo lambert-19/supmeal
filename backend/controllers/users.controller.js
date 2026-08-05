@@ -1,4 +1,6 @@
 const usersService = require("../services/users.service");
+const oauthService = require("../services/oauth.service");
+const prisma = require("../utils/prisma");
 const { toSafeUser } = require("../utils/serializers");
 const { signToken, cookieOptions } = require("../utils/jwt");
 const asyncHandler = require("../utils/asyncHandler");
@@ -23,4 +25,10 @@ const updatePreferences = asyncHandler(async (req, res) => {
   res.json(toSafeUser(user));
 });
 
-module.exports = { updateProfile, changePassword, updatePreferences };
+const unlinkOAuthProvider = asyncHandler(async (req, res) => {
+  await oauthService.unlinkAccount(req.user.id, req.params.provider);
+  const user = await prisma.user.findUnique({ where: { id: req.user.id }, include: { oauthAccounts: true } });
+  res.json(toSafeUser(user));
+});
+
+module.exports = { updateProfile, changePassword, updatePreferences, unlinkOAuthProvider };

@@ -3,7 +3,7 @@ const { hashPassword, comparePassword } = require("../utils/password");
 const AppError = require("../utils/AppError");
 
 async function updateProfile(userId, { name }) {
-  return prisma.user.update({ where: { id: userId }, data: { name } });
+  return prisma.user.update({ where: { id: userId }, data: { name }, include: { oauthAccounts: true } });
 }
 
 async function changePassword(userId, { currentPassword, newPassword }) {
@@ -18,7 +18,7 @@ async function changePassword(userId, { currentPassword, newPassword }) {
   // le contrôleur réémet un cookie à jour pour la session courante.
   return prisma.user.update({
     where: { id: userId },
-    data: { passwordHash, tokenVersion: { increment: 1 } },
+    data: { passwordHash, tokenVersion: { increment: 1 }, hasPassword: true },
   });
 }
 
@@ -26,6 +26,7 @@ async function updatePreferences(userId, { dietaryRegime, allergies, favoriteCui
   return prisma.user.update({
     where: { id: userId },
     data: { dietaryRegime, allergies, favoriteCuisine, defaultServings },
+    include: { oauthAccounts: true },
   });
 }
 

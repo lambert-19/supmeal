@@ -16,8 +16,7 @@ API REST du backend SUPMEAL. Node.js + Express 5 + Prisma + PostgreSQL, authenti
 - **multer** pour l'upload d'images de recette (stockage disque, voir section dédiée ci-dessous)
 - **socket.io** pour la messagerie de cookbook en temps réel (voir section dédiée ci-dessous)
 - **swagger-jsdoc + swagger-ui-express** pour la documentation interactive de l'API (voir section dédiée ci-dessous)
-
-**Hors périmètre pour l'instant** (prévu pour une passe suivante, cohérent avec les placeholders déjà présents côté frontend) : OAuth2 Google/GitHub réel.
+- **OAuth2 Google/GitHub réel** (`fetch` natif, sans librairie tierce — voir section dédiée ci-dessous)
 
 ## Lancer le projet
 
@@ -43,9 +42,11 @@ Documentation interactive de l'API une fois le serveur lancé : http://localhost
 | `JWT_SECRET` | Secret de signature des JWT  à générer aléatoirement, jamais commité |
 | `COOKIE_NAME` | Nom du cookie contenant le JWT |
 | `CORS_ORIGIN` | Origine(s) autorisée(s) en CORS, séparées par des virgules (ex. `http://localhost:5173,http://localhost:5174`  le port Vite varie selon disponibilité) |
-| `FRONTEND_URL` | Origine du frontend, utilisée pour construire les liens envoyés par email (`/verify-email?token=...`, `/reset-password?token=...`) |
+| `FRONTEND_URL` | Origine du frontend, utilisée pour construire les liens envoyés par email (`/verify-email?token=...`, `/reset-password?token=...`) et les redirections OAuth2 (succès/erreur) |
+| `BACKEND_URL` | Origine de l'API elle-même, utilisée pour construire les URLs d'images uploadées et les `redirect_uri` OAuth2 |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_SECURE` / `SMTP_USER` / `SMTP_PASS` | Configuration SMTP pour l'envoi réel des emails. **Optionnel** : si `SMTP_HOST` est vide, `utils/mailer.js` simule l'envoi et logge le lien dans la console au lieu d'envoyer un vrai email (pratique en dev sans compte mail) |
 | `MAIL_FROM` | Adresse d'expéditeur affichée sur les emails envoyés |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` | Identifiants OAuth2. **Optionnel** : si absents pour un fournisseur, le bouton correspondant redirige vers le frontend avec `oauthError=not_configured` au lieu de planter |
 
 ## Structure
 
@@ -55,7 +56,7 @@ backend/
   app.js               construction de l'app Express (helmet, cors, cookie-parser, routers, error handler)
   prisma/
     schema.prisma        modèle de données complet (User, Recipe, Ingredient, Step, Cookbook, CookbookMember,
-                          PlanningEntry, Comment, Message, VerificationToken)
+                          PlanningEntry, Comment, Message, VerificationToken, OAuthAccount)
     migrations/            historique des migrations Prisma
   utils/
     prisma.js              instance PrismaClient singleton
@@ -76,6 +77,8 @@ backend/
     socket.js                    Socket.io : authentification de la connexion, rooms par cookbook, diffusion des messages
     uploadFiles.js               suppression sur disque des images de recette devenues orphelines
     corsOrigins.js                liste des origines CORS, partagée entre app.js et socket.js
+    oauthProviders.js             config Google/GitHub (URLs, scope, échange de code, récupération du profil)
+    oauthFlow.js                  cookie temporaire portant le state anti-CSRF + l'intention (login/link) du flux OAuth2
   middleware/
     auth.js                 requireAuth : lit le cookie, vérifie le JWT, attache req.user = { id }
     loadCookbook.js           charge un cookbook + calcule le rôle de l'utilisateur courant (req.cookbook, req.role)
@@ -83,7 +86,8 @@ backend/
     errorHandler.js             middleware d'erreur centralisé (AppError, codes Prisma, JWT, 500 générique)
   routes/ controllers/ services/   un trio par domaine (auth, users, recipes, cookbooks, planning, comments,
                                     messages)  routes définissent les endpoints + validation, controllers
-                                    gèrent req/res, services contiennent la logique métier + les appels Prisma
+                                    gèrent req/res, services contiennent la logique métier + les appels Prisma ;
+                                    oauth.controller.js/oauth.service.js suivent le même découpage pour OAuth2
 ```
 
 ## Modèle de permissions (appliqué côté serveur)
@@ -123,6 +127,18 @@ Les réponses API sur les cookbooks/membres passent systématiquement par `toCoo
 - **Révocation des JWT** : `User.tokenVersion` (incrémenté à chaque changement/réinitialisation de mot de passe) est embarqué dans le payload du JWT et revérifié en base à chaque requête authentifiée (`middleware/auth.js`). Un JWT signé avant un changement de mot de passe devient donc invalide immédiatement (`401`), sans attendre son expiration (7 jours)  utile si le token a fuité ou si une autre session doit être coupée. La session qui effectue elle-même le changement (`PATCH /users/me/password`) reçoit un cookie réémis avec le nouveau `tokenVersion`, donc n'est pas déconnectée par sa propre action ; `POST /auth/reset-password` (flux mot de passe oublié) n'a pas de session active à réémettre, toutes les sessions existantes sont donc invalidées.
 - **Secrets** : `.env` n'est jamais committé (`.gitignore`), voir `.env.example` pour la liste des variables attendues.
 
+## OAuth2 (Google/GitHub)
+
+Flux "authorization code" implémenté à la main avec le `fetch` natif de Node (`utils/oauthProviders.js`) plutôt qu'avec Passport (dépendances `passport`/`passport-google-oauth20`/`passport-github2` retirées du projet) : Passport gère nativement l'anti-CSRF de ce flux via `req.session`, ce qui aurait imposé d'introduire `express-session` dans une API par ailleurs entièrement stateless (JWT en cookie httpOnly) — cohérence architecturale plutôt qu'économie de code.
+
+- **Anti-CSRF sans session serveur** (`utils/oauthFlow.js`) : au départ du flux, un `state` aléatoire est généré et embarqué (avec l'intention et, pour "link", l'id de l'utilisateur courant) dans un cookie httpOnly de courte durée (`supmeal_oauth_flow`, 10 min). Au retour du fournisseur, le `state` reçu en query param est comparé à celui du cookie ; toute divergence (falsification, cookie expiré, callback rejoué) redirige vers une erreur (`oauthError=state_mismatch`) sans jamais toucher la base.
+- **Deux intentions, un seul callback** : `GET /auth/oauth/:provider` (public) démarre une connexion/inscription ; `GET /auth/oauth/:provider/link` (authentifié) démarre un rattachement au compte déjà connecté. `GET /auth/oauth/:provider/callback` (appelé par le fournisseur, jamais par le client) lit l'intention dans le cookie de flux pour savoir quoi faire du profil récupéré.
+- **Connexion/inscription** (`services/oauth.service.js#findOrCreateUserFromProfile`) : si ce compte tiers est déjà lié, reconnexion directe. Sinon, si l'email du profil correspond à un compte SUPMEAL existant, rattachement automatique (le fournisseur a déjà vérifié cet email, aucun risque de prise de contrôle d'un compte qu'on ne possède pas). Sinon, création d'un compte avec `emailVerified: true` d'office (skip du flux de vérification par email) et `hasPassword: false` — `passwordHash` contient un secret aléatoire (`crypto.randomBytes(32)`) jamais communiqué, qui rend `POST /auth/login` classique impossible tant qu'aucun vrai mot de passe n'a été défini via `POST /auth/reset-password` ("mot de passe oublié" fonctionne indépendamment de `hasPassword`).
+- **Liaison depuis Paramètres > Connexions** (`linkAccountToUser`) : refuse (`409`) si ce compte tiers est déjà lié à un *autre* utilisateur SUPMEAL. `DELETE /users/me/oauth/:provider` (délier) refuse (`400`) de retirer le dernier moyen de connexion (`hasPassword: false` et aucun autre fournisseur lié) pour ne jamais verrouiller un utilisateur hors de son propre compte.
+- **Modèle** : `OAuthAccount` (`provider`, `providerAccountId`, `userId`), `@@unique([provider, providerAccountId])` (un compte tiers ne peut être lié qu'à un seul utilisateur SUPMEAL) et `@@unique([provider, userId])` (un utilisateur ne peut lier qu'un seul compte par fournisseur).
+- **Configuration optionnelle** : si `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` (ou l'équivalent GitHub) sont absents, le bouton correspondant redirige proprement vers le frontend avec `oauthError=not_configured` au lieu de planter — pratique pour développer sans avoir créé d'application OAuth2. URIs de redirection à déclarer côté fournisseur : `{BACKEND_URL}/auth/oauth/google/callback` et `{BACKEND_URL}/auth/oauth/github/callback`.
+- **Vérifié** (script Node dédié, nettoyé après coup) : rattachement automatique à un compte existant par email, absence de doublon en rejouant le même profil, création d'un nouveau compte avec `hasPassword: false`, refus de lier un compte tiers déjà lié à un autre utilisateur (409), refus/autorisation de délier selon `hasPassword` et le nombre de fournisseurs restants (12/12 assertions) ; côté HTTP, fournisseur inconnu, `401` sur `/link` sans session, `state_mismatch` sans cookie de flux ou avec un `state` altéré, `access_denied` sur refus du fournisseur, et redirection réelle vers l'écran de consentement Google avec les bons paramètres.
+
 ## Documentation interactive (Swagger)
 
 La spec OpenAPI 3 est générée à partir d'annotations JSDoc `@swagger` directement dans `routes/*.routes.js` (une annotation par endpoint, à côté de la définition de la route  pas de fichier séparé à maintenir en double). `utils/swagger.js` définit le socle (info, tags, schémas de `components.schemas` calqués sur les DTO de `utils/serializers.js`, schéma de sécurité `cookieAuth`) et agrège ces annotations via `swagger-jsdoc`.
@@ -136,8 +152,8 @@ La spec OpenAPI 3 est générée à partir d'annotations JSDoc `@swagger` direct
 
 | Domaine | Routes |
 |---|---|
-| Auth | `POST /auth/register`, `POST /auth/login`, `POST /auth/logout`, `GET /auth/me`, `POST /auth/verify-email`, `POST /auth/resend-verification`, `POST /auth/forgot-password`, `POST /auth/reset-password` |
-| Users | `PATCH /users/me`, `PATCH /users/me/password`, `PATCH /users/me/preferences` |
+| Auth | `POST /auth/register`, `POST /auth/login`, `POST /auth/logout`, `GET /auth/me`, `POST /auth/verify-email`, `POST /auth/resend-verification`, `POST /auth/forgot-password`, `POST /auth/reset-password`, `GET /auth/oauth/:provider`, `GET /auth/oauth/:provider/link`, `GET /auth/oauth/:provider/callback` |
+| Users | `PATCH /users/me`, `PATCH /users/me/password`, `PATCH /users/me/preferences`, `DELETE /users/me/oauth/:provider` |
 | Recettes | `GET/POST /recipes` (filtres `q`, `tags`, `time`, `favorite`), `GET/PATCH/DELETE /recipes/:id`, `PATCH /recipes/:id/favorite` |
 | Cookbooks | `GET/POST /cookbooks`, `GET/PATCH/DELETE /cookbooks/:id`, `GET /cookbooks/:id/recipes`, `POST/DELETE /cookbooks/:id/recipes/:recipeId`, `POST /cookbooks/:id/members`, `PATCH/DELETE /cookbooks/:id/members/:memberId` |
 | Planning | `PUT /planning` (upsert sur `ownerId+date+mealSlot`), `GET /planning?from=&to=`, `DELETE /planning/:id` |
@@ -184,7 +200,7 @@ Toutes les routes ont été testées via des scripts Node (`fetch` + assertions)
 
 ## À venir
 
-- OAuth2 Google/GitHub réel (Passport, déjà en dépendance)  nécessite la création d'applications OAuth (Google Cloud Console / GitHub Developer Settings) pour obtenir un client ID/secret.
+- OAuth2 Google/GitHub : implémenté (voir section dédiée), mais nécessite que `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`/`GITHUB_CLIENT_ID`/`GITHUB_CLIENT_SECRET` soient renseignés avec de vrais identifiants (créés sur Google Cloud Console / GitHub Developer Settings) pour fonctionner en pratique — `.env` ne contient que des placeholders.
 - SMS pour les invitations de cookbook : écarté volontairement (tout fournisseur fiable est payant), email uniquement pour l'instant.
 - Docker (`dockerfile` et `docker-compose.yaml` encore vides).
 - Secrets historiques dans l'historique Git (mot de passe Postgres exposé dans un ancien commit supprimé depuis)  à traiter indépendamment (rotation du mot de passe, éventuelle réécriture d'historique).

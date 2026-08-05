@@ -1,7 +1,9 @@
 import axios from "axios"
 
+export const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000"
+
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL ?? "http://localhost:4000",
+  baseURL: API_BASE_URL,
   withCredentials: true,
 })
 
@@ -41,4 +43,11 @@ api.interceptors.response.use(
 
 export function apiErrorMessage(error, fallback) {
   return error.response?.data?.message ?? fallback
+}
+
+// Navigation plein-page (pas un appel axios) : ces routes redirigent vers
+// l'écran de consentement du fournisseur puis reviennent poser le cookie de
+// session côté serveur, un <a href> classique est donc nécessaire ici.
+export function oauthStartUrl(provider, intent = "login") {
+  return `${API_BASE_URL}/auth/oauth/${provider}${intent === "link" ? "/link" : ""}`
 }

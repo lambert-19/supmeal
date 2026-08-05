@@ -1,5 +1,5 @@
 const { Router } = require("express");
-const { body } = require("express-validator");
+const { body, param } = require("express-validator");
 
 const usersController = require("../controllers/users.controller");
 const validate = require("../middleware/validate");
@@ -108,6 +108,32 @@ router.patch(
   ],
   validate,
   usersController.updatePreferences
+);
+
+/**
+ * @swagger
+ * /users/me/oauth/{provider}:
+ *   delete:
+ *     tags: [Users]
+ *     summary: Délier un fournisseur OAuth2
+ *     description: Refusé (400) si c'est le seul moyen de connexion du compte (pas de mot de passe défini et aucun autre fournisseur lié).
+ *     parameters:
+ *       - in: path
+ *         name: provider
+ *         required: true
+ *         schema: { type: string, enum: [google, github] }
+ *     responses:
+ *       200:
+ *         description: Fournisseur délié.
+ *         content: { application/json: { schema: { $ref: '#/components/schemas/User' } } }
+ *       400: { $ref: '#/components/responses/ValidationError' }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ */
+router.delete(
+  "/me/oauth/:provider",
+  [param("provider").isIn(["google", "github"]).withMessage("Fournisseur inconnu.")],
+  validate,
+  usersController.unlinkOAuthProvider
 );
 
 module.exports = router;

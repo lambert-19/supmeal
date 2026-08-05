@@ -25,11 +25,17 @@ enum VerificationTokenType {
   password_reset
 }
 
+enum OAuthProvider {
+  google
+  github
+}
+
 model User {
   id              String          @id @default(cuid())
   name            String
   email           String          @unique
   passwordHash    String
+  hasPassword     Boolean   @default(true) // false pour un compte créé via OAuth2 tant qu'aucun vrai mot de passe n'a été défini (passwordHash contient alors un secret aléatoire inconnu de l'utilisateur) — voir services/oauth.service.js
   tokenVersion    Int       @default(0) // incrémenté au changement de mot de passe : invalide tous les JWT déjà émis
   emailVerified   Boolean   @default(false)
   lastSeenAt      DateTime? // mis à jour quand la dernière socket de l'utilisateur se déconnecte (présence en ligne)
@@ -37,8 +43,6 @@ model User {
   allergies       String[]  @default([])
   favoriteCuisine String    @default("none")
   defaultServings Int       @default(4)
-  connectedGoogle Boolean   @default(false)
-  connectedGithub Boolean   @default(false)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -50,6 +54,24 @@ model User {
   messages            Message[]
   verificationTokens  VerificationToken[]
   messageReceipts     MessageReceipt[]
+  oauthAccounts       OAuthAccount[]
+}
+
+// Un compte tiers (Google/GitHub) lié à un utilisateur SUPMEAL. Un même
+// provider ne peut être lié qu'une fois par utilisateur (@@unique([provider,
+// userId])), et un compte tiers donné ne peut être lié qu'à un seul
+// utilisateur SUPMEAL (@@unique([provider, providerAccountId])).
+model OAuthAccount {
+  id                String        @id @default(cuid())
+  provider          OAuthProvider
+  providerAccountId String
+  userId            String
+  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt         DateTime      @default(now())
+
+  @@unique([provider, providerAccountId])
+  @@unique([provider, userId])
+  @@index([userId])
 }
 
 model VerificationToken {

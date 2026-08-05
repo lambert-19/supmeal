@@ -1,3 +1,5 @@
+import { useSearchParams } from "react-router-dom"
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { PageHeader } from "@/components/page-header"
 import { useAuthStore } from "@/lib/stores/auth-store"
@@ -6,8 +8,13 @@ import { SecurityTab } from "@/pages/settings/security-tab"
 import { ConnectionsTab } from "@/pages/settings/connections-tab"
 import { PreferencesTab } from "@/pages/settings/preferences-tab"
 
+const VALID_TABS = new Set(["profile", "security", "connections", "preferences"])
+
 export function SettingsPage() {
   const user = useAuthStore((s) => s.user)
+  const [searchParams] = useSearchParams()
+  const requestedTab = searchParams.get("tab")
+  const initialTab = VALID_TABS.has(requestedTab) ? requestedTab : "profile"
 
   return (
     <div className="space-y-6">
@@ -16,7 +23,7 @@ export function SettingsPage() {
         description="Gérez votre compte, vos connexions OAuth2 et vos préférences culinaires."
       />
 
-      <Tabs defaultValue="profile">
+      <Tabs defaultValue={initialTab}>
         <TabsList>
           <TabsTrigger value="profile">Profil</TabsTrigger>
           <TabsTrigger value="security">Sécurité</TabsTrigger>

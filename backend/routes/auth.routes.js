@@ -2,6 +2,7 @@ const { Router } = require("express");
 const { body } = require("express-validator");
 
 const authController = require("../controllers/auth.controller");
+const oauthController = require("../controllers/oauth.controller");
 const validate = require("../middleware/validate");
 const requireAuth = require("../middleware/auth");
 const { loginLimiter, authActionLimiter } = require("../middleware/rateLimit");
@@ -247,5 +248,70 @@ router.post(
   validate,
   authController.resetPassword
 );
+
+/**
+ * @swagger
+ * /auth/oauth/{provider}:
+ *   get:
+ *     tags: [Auth]
+ *     summary: Démarrer une connexion/inscription OAuth2 (Google/GitHub)
+ *     description: >
+ *       Redirige (302) vers l'écran de consentement du fournisseur. Après
+ *       validation, le fournisseur renvoie le navigateur vers
+ *       `/auth/oauth/{provider}/callback`, qui pose le cookie de session et
+ *       redirige vers le frontend. Si l'email du profil correspond déjà à un
+ *       compte SUPMEAL, il est rattaché automatiquement ; sinon un nouveau
+ *       compte est créé (email considéré vérifié d'office).
+ *     security: []
+ *     parameters:
+ *       - in: path
+ *         name: provider
+ *         required: true
+ *         schema: { type: string, enum: [google, github] }
+ *     responses:
+ *       302: { description: Redirection vers le fournisseur OAuth2 (ou vers le frontend en cas d'erreur de configuration). }
+ */
+router.get("/oauth/:provider", oauthController.start("login"));
+
+/**
+ * @swagger
+ * /auth/oauth/{provider}/link:
+ *   get:
+ *     tags: [Auth]
+ *     summary: Lier un fournisseur OAuth2 au compte connecté
+ *     description: Même flux que `/auth/oauth/{provider}`, mais rattache le fournisseur à l'utilisateur déjà authentifié au lieu de connecter/créer un compte.
+ *     parameters:
+ *       - in: path
+ *         name: provider
+ *         required: true
+ *         schema: { type: string, enum: [google, github] }
+ *     responses:
+ *       302: { description: Redirection vers le fournisseur OAuth2. }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ */
+router.get("/oauth/:provider/link", requireAuth, oauthController.start("link"));
+
+/**
+ * @swagger
+ * /auth/oauth/{provider}/callback:
+ *   get:
+ *     tags: [Auth]
+ *     summary: Callback OAuth2 (appelé par le fournisseur, pas par le client)
+ *     security: []
+ *     parameters:
+ *       - in: path
+ *         name: provider
+ *         required: true
+ *         schema: { type: string, enum: [google, github] }
+ *       - in: query
+ *         name: code
+ *         schema: { type: string }
+ *       - in: query
+ *         name: state
+ *         schema: { type: string }
+ *     responses:
+ *       302: { description: Redirection vers le frontend (session ouverte, connexion liée, ou erreur en query param `oauthError`). }
+ */
+router.get("/oauth/:provider/callback", oauthController.callback);
 
 module.exports = router;
