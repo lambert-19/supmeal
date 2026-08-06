@@ -1,0 +1,77 @@
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-supmeal}
+      POSTGRES_DB: supmeal
+    volumes:
+      - supmeal_pgdata:/var/lib/postgresql/data
+    ports:
+      # Publié en 127.0.0.1 explicitement (pas 0.0.0.0/défaut) : évite que
+      # Docker Desktop ouvre aussi un listener IPv6 ([::]) dont le
+      # port-forwarding est cassé sur certaines installations Windows —
+      # "localhost" résolu en ::1 restait alors bloqué plusieurs secondes
+      # avant d'échouer, au lieu d'un refus immédiat qui bascule sur l'IPv4.
+      # 5433 côté hôte : évite tout conflit avec un Postgres déjà installé en
+      # natif sur la machine (le backend/frontend, eux, parlent à "db:5432"
+      # via le réseau interne Docker, ce port publié n'est utile que pour un
+      # accès depuis l'hôte, ex. psql/Prisma Studio).
+      - "127.0.0.1:5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    logging: *default-logging
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: dockerfile
+    restart: unless-stopped
+    # Récupère JWT_SECRET, SMTP_*, GOOGLE_*/GITHUB_* depuis backend/.env (jamais
+    # committé) ; les clés ci-dessous le surchargent volontairement pour
+    # pointer vers les autres services du réseau Docker plutôt que localhost,
+    # et forcer un mode compatible cookie/HTTP sans reverse-proxy HTTPS.
+    env_file:
+      - ./backend/.env
+    environment:
+      NODE_ENV: development
+      PORT: 4000
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-supmeal}@db:5432/supmeal?schema=public
+      BACKEND_URL: http://localhost:4000
+      FRONTEND_URL: http://localhost:5173
+      CORS_ORIGIN: http://localhost:5173
+    ports:
+      - "127.0.0.1:4000:4000"
+    volumes:
+      - supmeal_uploads:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    logging: *default-logging
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: dockerfile
+      args:
+        VITE_API_URL: http://localhost:4000
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5173:80"
+    depends_on:
+      - backend
+    logging: *default-logging
+
+volumes:
+  supmeal_pgdata:
+  supmeal_uploads:

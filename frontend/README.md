@@ -31,6 +31,10 @@ L'app est servie sur http://localhost:5173. Nécessite le backend démarré (voi
 
 Autres scripts : `npm run build` (build de production), `npm run preview` (prévisualiser le build), `npm run lint` (ESLint), `npm run test` (vitest  pas encore de fichier de test).
 
+### Alternative : Docker
+
+`dockerfile` (build multi-stage : `vite build` puis servi par nginx, `nginx.conf` gère le fallback SPA `try_files ... /index.html`) est utilisé par le `docker-compose.yaml` à la racine du dépôt (`docker compose up -d --build`), qui lance les 3 services (db, backend, frontend) ensemble  voir `backend/README.md` et `SUIVI_PROJET.md` pour le détail.
+
 ## Structure
 
 ```
