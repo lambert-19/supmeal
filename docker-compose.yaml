@@ -10,7 +10,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-supmeal}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: supmeal
     volumes:
       - supmeal_pgdata:/var/lib/postgresql/data
