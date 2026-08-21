@@ -1,12 +1,15 @@
 import { useEffect } from "react"
 import { useSearchParams } from "react-router-dom"
+import { motion, useReducedMotion } from "framer-motion"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
+import { MotionPress } from "@/components/motion-press"
 import { useAuthStore } from "@/lib/stores/auth-store"
 import { oauthStartUrl, apiErrorMessage } from "@/lib/api"
 import { OAUTH_PROVIDERS } from "@/lib/constants/preferences"
+import { FORM_STAGGER_CONTAINER_VARIANTS, FORM_STAGGER_ITEM_VARIANTS } from "@/lib/motion-variants"
 
 const OAUTH_ERROR_MESSAGES = {
   not_configured: "Cette connexion n'est pas encore configurée côté serveur.",
@@ -22,6 +25,7 @@ export function ConnectionsTab() {
   const user = useAuthStore((s) => s.user)
   const disconnectOAuthProvider = useAuthStore((s) => s.disconnectOAuthProvider)
   const [searchParams, setSearchParams] = useSearchParams()
+  const prefersReducedMotion = useReducedMotion()
 
   useEffect(() => {
     const linked = searchParams.get("linked")
@@ -58,16 +62,23 @@ export function ConnectionsTab() {
   const canDisconnectAny = user.hasPassword || linkedCount > 1
 
   return (
-    <div className="max-w-md space-y-3">
-      <p className="text-sm text-muted-foreground">
+    <motion.div
+      variants={prefersReducedMotion ? undefined : FORM_STAGGER_CONTAINER_VARIANTS}
+      initial={prefersReducedMotion ? undefined : "hidden"}
+      animate={prefersReducedMotion ? undefined : "show"}
+      className="max-w-md space-y-3">
+      <motion.p
+        variants={prefersReducedMotion ? undefined : FORM_STAGGER_ITEM_VARIANTS}
+        className="text-sm text-muted-foreground">
         Liez un compte tiers pour vous y connecter directement, sans mot de passe.
-      </p>
+      </motion.p>
       {OAUTH_PROVIDERS.map(({ key, label, description }) => {
         const connected = user.connections[key]
         const disableDisconnect = connected && !canDisconnectAny
         return (
-          <div
+          <motion.div
             key={key}
+            variants={prefersReducedMotion ? undefined : FORM_STAGGER_ITEM_VARIANTS}
             className="flex items-center justify-between gap-4 rounded-lg border border-border px-4 py-3">
             <div className="space-y-0.5">
               <Label htmlFor={`oauth-${key}`}>{label}</Label>
@@ -79,23 +90,27 @@ export function ConnectionsTab() {
               )}
             </div>
             {connected ? (
-              <Button
-                id={`oauth-${key}`}
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={disableDisconnect}
-                onClick={() => handleDisconnect(key, label)}>
-                Délier
-              </Button>
+              <MotionPress>
+                <Button
+                  id={`oauth-${key}`}
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={disableDisconnect}
+                  onClick={() => handleDisconnect(key, label)}>
+                  Délier
+                </Button>
+              </MotionPress>
             ) : (
-              <Button id={`oauth-${key}`} size="sm" render={<a href={oauthStartUrl(key, "link")} />} nativeButton={false}>
-                Lier
-              </Button>
+              <MotionPress>
+                <Button id={`oauth-${key}`} size="sm" render={<a href={oauthStartUrl(key, "link")} />} nativeButton={false}>
+                  Lier
+                </Button>
+              </MotionPress>
             )}
-          </div>
+          </motion.div>
         )
       })}
-    </div>
+    </motion.div>
   )
 }

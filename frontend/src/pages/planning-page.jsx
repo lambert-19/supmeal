@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react"
 import { Link } from "react-router-dom"
+import { motion, useReducedMotion } from "framer-motion"
 import { CalendarDays, ChevronLeft, ChevronRight, Coffee, Moon, ShoppingCart, Sun, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -26,6 +27,7 @@ import { useMyRecipes } from "@/hooks/use-my-recipes"
 import { useRecipeSuggestions } from "@/hooks/use-recipe-suggestions"
 import { apiErrorMessage } from "@/lib/api"
 import { cn } from "@/lib/utils"
+import { GRID_CONTAINER_VARIANTS, GRID_ITEM_VARIANTS } from "@/lib/motion-variants"
 import {
   MEAL_SLOTS,
   WEEKDAY_LABELS,
@@ -52,6 +54,7 @@ export function PlanningPage() {
   const myRecipes = useMyRecipes()
   const { suggestions } = useRecipeSuggestions()
   const [weekOffset, setWeekOffset] = useState(0)
+  const prefersReducedMotion = useReducedMotion()
 
   const recipesById = useMemo(() => new Map(myRecipes.map((recipe) => [recipe.id, recipe])), [myRecipes])
   const suggestedRecipes = useMemo(() => suggestions.slice(0, 4), [suggestions])
@@ -181,91 +184,96 @@ export function PlanningPage() {
           }
         />
       ) : (
-        <div className="-mx-1 flex gap-4 overflow-x-auto px-1 pt-2 pb-3">
+        <motion.div
+          variants={prefersReducedMotion ? undefined : GRID_CONTAINER_VARIANTS}
+          initial={prefersReducedMotion ? undefined : "hidden"}
+          animate={prefersReducedMotion ? undefined : "show"}
+          className="-mx-1 flex gap-4 overflow-x-auto px-1 pt-2 pb-3">
           {days.map((day, index) => {
             const dateISO = toISODate(day)
             const isToday = dateISO === toISODate(new Date())
             return (
-              <Card
-                key={dateISO}
-                className={cn("w-64 shrink-0", isToday && "border-primary/40 ring-2 ring-primary/30")}>
-                <CardContent className="space-y-5 py-5">
-                  <div className="flex items-baseline justify-between">
-                    <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                      {WEEKDAY_LABELS[index]}
-                    </p>
-                    <p className="text-sm font-semibold">{DAY_NUMBER_FORMAT.format(day)}</p>
-                  </div>
+              <motion.div key={dateISO} variants={prefersReducedMotion ? undefined : GRID_ITEM_VARIANTS}>
+                <Card
+                  className={cn("w-64 shrink-0", isToday && "border-primary/40 ring-2 ring-primary/30")}>
+                  <CardContent className="space-y-5 py-5">
+                    <div className="flex items-baseline justify-between">
+                      <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                        {WEEKDAY_LABELS[index]}
+                      </p>
+                      <p className="text-sm font-semibold">{DAY_NUMBER_FORMAT.format(day)}</p>
+                    </div>
 
-                  {MEAL_SLOTS.map((slot, slotIndex) => {
-                    const entry = entriesByKey.get(`${dateISO}:${slot.value}`)
-                    const recipe = entry ? recipesById.get(entry.recipeId) : null
-                    const SlotIcon = MEAL_SLOT_ICONS[slot.value]
-                    return (
-                      <div
-                        key={slot.value}
-                        className={cn("space-y-2", slotIndex > 0 && "border-t border-border pt-4")}>
-                        <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                          <SlotIcon className="size-3.5" />
-                          {slot.label}
-                        </p>
-                        {recipe ? (
-                          <div className="flex items-center justify-between gap-1 rounded-lg bg-muted px-2.5 py-2">
-                            <Link
-                              to={`/recipes/${recipe.id}`}
-                              className="truncate text-xs font-medium hover:underline">
-                              {recipe.title}
-                            </Link>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-sm"
-                              className="shrink-0"
-                              onClick={() => handleRemoveEntry(entry.id)}
-                              aria-label={`Retirer ${recipe.title} du ${slot.label.toLowerCase()}`}>
-                              <X className="size-3" />
-                            </Button>
-                          </div>
-                        ) : (
-                          <Select
-                            value=""
-                            onValueChange={(recipeId) => handleSetEntry(dateISO, slot.value, recipeId)}>
-                            <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Ajouter une recette" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {suggestedRecipes.length > 0 && (
-                                <>
-                                  <SelectGroup>
-                                    <SelectLabel>Suggestions</SelectLabel>
-                                    {suggestedRecipes.map((r) => (
-                                      <SelectItem key={r.id} value={r.id}>
-                                        {r.title}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectGroup>
-                                  <SelectSeparator />
-                                </>
-                              )}
-                              <SelectGroup>
-                                {suggestedRecipes.length > 0 && <SelectLabel>Toutes les recettes</SelectLabel>}
-                                {(suggestedRecipes.length > 0 ? otherRecipes : myRecipes).map((r) => (
-                                  <SelectItem key={r.id} value={r.id}>
-                                    {r.title}
-                                  </SelectItem>
-                                ))}
-                              </SelectGroup>
-                            </SelectContent>
-                          </Select>
-                        )}
-                      </div>
-                    )
-                  })}
-                </CardContent>
-              </Card>
+                    {MEAL_SLOTS.map((slot, slotIndex) => {
+                      const entry = entriesByKey.get(`${dateISO}:${slot.value}`)
+                      const recipe = entry ? recipesById.get(entry.recipeId) : null
+                      const SlotIcon = MEAL_SLOT_ICONS[slot.value]
+                      return (
+                        <div
+                          key={slot.value}
+                          className={cn("space-y-2", slotIndex > 0 && "border-t border-border pt-4")}>
+                          <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                            <SlotIcon className="size-3.5" />
+                            {slot.label}
+                          </p>
+                          {recipe ? (
+                            <div className="flex items-center justify-between gap-1 rounded-lg bg-muted px-2.5 py-2">
+                              <Link
+                                to={`/recipes/${recipe.id}`}
+                                className="truncate text-xs font-medium hover:underline">
+                                {recipe.title}
+                              </Link>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                className="shrink-0"
+                                onClick={() => handleRemoveEntry(entry.id)}
+                                aria-label={`Retirer ${recipe.title} du ${slot.label.toLowerCase()}`}>
+                                <X className="size-3" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <Select
+                              value=""
+                              onValueChange={(recipeId) => handleSetEntry(dateISO, slot.value, recipeId)}>
+                              <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Ajouter une recette" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {suggestedRecipes.length > 0 && (
+                                  <>
+                                    <SelectGroup>
+                                      <SelectLabel>Suggestions</SelectLabel>
+                                      {suggestedRecipes.map((r) => (
+                                        <SelectItem key={r.id} value={r.id}>
+                                          {r.title}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectGroup>
+                                    <SelectSeparator />
+                                  </>
+                                )}
+                                <SelectGroup>
+                                  {suggestedRecipes.length > 0 && <SelectLabel>Toutes les recettes</SelectLabel>}
+                                  {(suggestedRecipes.length > 0 ? otherRecipes : myRecipes).map((r) => (
+                                    <SelectItem key={r.id} value={r.id}>
+                                      {r.title}
+                                    </SelectItem>
+                                  ))}
+                                </SelectGroup>
+                              </SelectContent>
+                            </Select>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </CardContent>
+                </Card>
+              </motion.div>
             )
           })}
-        </div>
+        </motion.div>
       )}
     </div>
   )

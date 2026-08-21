@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { Controller, useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
+import { motion, useReducedMotion } from "framer-motion"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -9,15 +10,18 @@ import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { FormField } from "@/components/form-field"
+import { MotionPress } from "@/components/motion-press"
 import { useAuthStore } from "@/lib/stores/auth-store"
 import { apiErrorMessage } from "@/lib/api"
 import { preferencesSchema } from "@/lib/schemas/settings"
 import { CUISINES, DIETARY_REGIMES, ALLERGENS } from "@/lib/constants/preferences"
+import { FORM_STAGGER_CONTAINER_VARIANTS, FORM_STAGGER_ITEM_VARIANTS } from "@/lib/motion-variants"
 
 export function PreferencesTab() {
   const user = useAuthStore((s) => s.user)
   const updatePreferences = useAuthStore((s) => s.updatePreferences)
   const [formError, setFormError] = useState(null)
+  const prefersReducedMotion = useReducedMotion()
 
   const {
     control,
@@ -40,69 +44,81 @@ export function PreferencesTab() {
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="max-w-md space-y-5" noValidate>
-      <FormField id="dietaryRegime" label="Régime alimentaire" error={errors.dietaryRegime?.message}>
-        <Controller
-          control={control}
-          name="dietaryRegime"
-          render={({ field }) => (
-            <Select value={field.value} onValueChange={field.onChange}>
-              <SelectTrigger id="dietaryRegime" className="w-full">
-                <SelectValue>
-                  {(value) => DIETARY_REGIMES.find((option) => option.value === value)?.label}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {DIETARY_REGIMES.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        />
-      </FormField>
+    <motion.form
+      variants={prefersReducedMotion ? undefined : FORM_STAGGER_CONTAINER_VARIANTS}
+      initial={prefersReducedMotion ? undefined : "hidden"}
+      animate={prefersReducedMotion ? undefined : "show"}
+      onSubmit={handleSubmit(onSubmit)}
+      className="max-w-md space-y-5"
+      noValidate>
+      <motion.div variants={prefersReducedMotion ? undefined : FORM_STAGGER_ITEM_VARIANTS}>
+        <FormField id="dietaryRegime" label="Régime alimentaire" error={errors.dietaryRegime?.message}>
+          <Controller
+            control={control}
+            name="dietaryRegime"
+            render={({ field }) => (
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger id="dietaryRegime" className="w-full">
+                  <SelectValue>
+                    {(value) => DIETARY_REGIMES.find((option) => option.value === value)?.label}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {DIETARY_REGIMES.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+        </FormField>
+      </motion.div>
 
-      <FormField id="favoriteCuisine" label="Cuisine préférée" error={errors.favoriteCuisine?.message}>
-        <Controller
-          control={control}
-          name="favoriteCuisine"
-          render={({ field }) => (
-            <Select value={field.value} onValueChange={field.onChange}>
-              <SelectTrigger id="favoriteCuisine" className="w-full">
-                <SelectValue>
-                  {(value) => CUISINES.find((option) => option.value === value)?.label}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {CUISINES.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        />
-      </FormField>
+      <motion.div variants={prefersReducedMotion ? undefined : FORM_STAGGER_ITEM_VARIANTS}>
+        <FormField id="favoriteCuisine" label="Cuisine préférée" error={errors.favoriteCuisine?.message}>
+          <Controller
+            control={control}
+            name="favoriteCuisine"
+            render={({ field }) => (
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger id="favoriteCuisine" className="w-full">
+                  <SelectValue>
+                    {(value) => CUISINES.find((option) => option.value === value)?.label}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {CUISINES.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+        </FormField>
+      </motion.div>
 
-      <FormField
-        id="defaultServings"
-        label="Nombre de portions par défaut"
-        error={errors.defaultServings?.message}>
-        <Input
+      <motion.div variants={prefersReducedMotion ? undefined : FORM_STAGGER_ITEM_VARIANTS}>
+        <FormField
           id="defaultServings"
-          type="number"
-          min={1}
-          max={20}
-          className="w-24"
-          aria-invalid={!!errors.defaultServings}
-          {...register("defaultServings")}
-        />
-      </FormField>
+          label="Nombre de portions par défaut"
+          error={errors.defaultServings?.message}>
+          <Input
+            id="defaultServings"
+            type="number"
+            min={1}
+            max={20}
+            className="w-24"
+            aria-invalid={!!errors.defaultServings}
+            {...register("defaultServings")}
+          />
+        </FormField>
+      </motion.div>
 
-      <div className="space-y-2">
+      <motion.div variants={prefersReducedMotion ? undefined : FORM_STAGGER_ITEM_VARIANTS} className="space-y-2">
         <Label>Allergies et intolérances</Label>
         <Controller
           control={control}
@@ -132,7 +148,7 @@ export function PreferencesTab() {
             </div>
           )}
         />
-      </div>
+      </motion.div>
 
       {formError && (
         <p className="text-sm text-destructive" role="alert">
@@ -140,9 +156,13 @@ export function PreferencesTab() {
         </p>
       )}
 
-      <Button type="submit" disabled={isSubmitting}>
-        {isSubmitting ? "Enregistrement..." : "Enregistrer les préférences"}
-      </Button>
-    </form>
+      <motion.div variants={prefersReducedMotion ? undefined : FORM_STAGGER_ITEM_VARIANTS}>
+        <MotionPress>
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? "Enregistrement..." : "Enregistrer les préférences"}
+          </Button>
+        </MotionPress>
+      </motion.div>
+    </motion.form>
   )
 }

@@ -1,5 +1,6 @@
 import { Controller, useFieldArray, useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
+import { motion, useReducedMotion } from "framer-motion"
 import { Plus, Trash2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -7,11 +8,14 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { FormField } from "@/components/form-field"
 import { TagInput } from "@/components/tag-input"
+import { MotionPress } from "@/components/motion-press"
 import { ImageGalleryInput } from "@/components/recipes/image-gallery-input"
 import { recipeSchema } from "@/lib/schemas/recipe"
 import { TAG_SUGGESTIONS, UNIT_SUGGESTIONS } from "@/lib/constants/recipe"
+import { FORM_STAGGER_CONTAINER_VARIANTS, FORM_STAGGER_ITEM_VARIANTS } from "@/lib/motion-variants"
 
 export function RecipeForm({ defaultValues, onSubmit, submitLabel, secondaryAction }) {
+  const prefersReducedMotion = useReducedMotion()
   const {
     control,
     register,
@@ -34,18 +38,30 @@ export function RecipeForm({ defaultValues, onSubmit, submitLabel, secondaryActi
   })
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="max-w-2xl space-y-6" noValidate>
-      <Controller
-        control={control}
-        name="images"
-        render={({ field }) => <ImageGalleryInput value={field.value} onChange={field.onChange} />}
-      />
+    <motion.form
+      variants={prefersReducedMotion ? undefined : FORM_STAGGER_CONTAINER_VARIANTS}
+      initial={prefersReducedMotion ? undefined : "hidden"}
+      animate={prefersReducedMotion ? undefined : "show"}
+      onSubmit={handleSubmit(onSubmit)}
+      className="max-w-2xl space-y-6"
+      noValidate>
+      <motion.div variants={prefersReducedMotion ? undefined : FORM_STAGGER_ITEM_VARIANTS}>
+        <Controller
+          control={control}
+          name="images"
+          render={({ field }) => <ImageGalleryInput value={field.value} onChange={field.onChange} />}
+        />
+      </motion.div>
 
-      <FormField id="title" label="Titre" error={errors.title?.message}>
-        <Input id="title" aria-invalid={!!errors.title} {...register("title")} />
-      </FormField>
+      <motion.div variants={prefersReducedMotion ? undefined : FORM_STAGGER_ITEM_VARIANTS}>
+        <FormField id="title" label="Titre" error={errors.title?.message}>
+          <Input id="title" aria-invalid={!!errors.title} {...register("title")} />
+        </FormField>
+      </motion.div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <motion.div
+        variants={prefersReducedMotion ? undefined : FORM_STAGGER_ITEM_VARIANTS}
+        className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <FormField id="prepTime" label="Préparation (min)" error={errors.prepTime?.message}>
           <Input id="prepTime" type="number" min={0} aria-invalid={!!errors.prepTime} {...register("prepTime")} />
         </FormField>
@@ -55,24 +71,26 @@ export function RecipeForm({ defaultValues, onSubmit, submitLabel, secondaryActi
         <FormField id="servings" label="Portions" error={errors.servings?.message}>
           <Input id="servings" type="number" min={1} max={50} aria-invalid={!!errors.servings} {...register("servings")} />
         </FormField>
-      </div>
+      </motion.div>
 
-      <FormField id="tags" label="Catégories / tags">
-        <Controller
-          control={control}
-          name="tags"
-          render={({ field }) => (
-            <TagInput
-              value={field.value}
-              onChange={field.onChange}
-              suggestions={TAG_SUGGESTIONS}
-              placeholder="Ajouter un tag (Entrée, Végétarien...)"
-            />
-          )}
-        />
-      </FormField>
+      <motion.div variants={prefersReducedMotion ? undefined : FORM_STAGGER_ITEM_VARIANTS}>
+        <FormField id="tags" label="Catégories / tags">
+          <Controller
+            control={control}
+            name="tags"
+            render={({ field }) => (
+              <TagInput
+                value={field.value}
+                onChange={field.onChange}
+                suggestions={TAG_SUGGESTIONS}
+                placeholder="Ajouter un tag (Entrée, Végétarien...)"
+              />
+            )}
+          />
+        </FormField>
+      </motion.div>
 
-      <div className="space-y-2">
+      <motion.div variants={prefersReducedMotion ? undefined : FORM_STAGGER_ITEM_VARIANTS} className="space-y-2">
         <p className="text-sm font-medium">Ingrédients</p>
         {errors.ingredients?.message && (
           <p className="text-xs text-destructive" role="alert">
@@ -130,9 +148,9 @@ export function RecipeForm({ defaultValues, onSubmit, submitLabel, secondaryActi
           <Plus />
           Ajouter un ingrédient
         </Button>
-      </div>
+      </motion.div>
 
-      <div className="space-y-2">
+      <motion.div variants={prefersReducedMotion ? undefined : FORM_STAGGER_ITEM_VARIANTS} className="space-y-2">
         <p className="text-sm font-medium">Étapes</p>
         {errors.steps?.message && (
           <p className="text-xs text-destructive" role="alert">
@@ -173,22 +191,28 @@ export function RecipeForm({ defaultValues, onSubmit, submitLabel, secondaryActi
           <Plus />
           Ajouter une étape
         </Button>
-      </div>
+      </motion.div>
 
-      <FormField id="source" label="Source (optionnel)" error={errors.source?.message}>
-        <Input
-          id="source"
-          placeholder="URL d'origine ou nom de l'auteur"
-          {...register("source")}
-        />
-      </FormField>
+      <motion.div variants={prefersReducedMotion ? undefined : FORM_STAGGER_ITEM_VARIANTS}>
+        <FormField id="source" label="Source (optionnel)" error={errors.source?.message}>
+          <Input
+            id="source"
+            placeholder="URL d'origine ou nom de l'auteur"
+            {...register("source")}
+          />
+        </FormField>
+      </motion.div>
 
-      <div className="flex items-center gap-2">
-        <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "Enregistrement..." : submitLabel}
-        </Button>
+      <motion.div
+        variants={prefersReducedMotion ? undefined : FORM_STAGGER_ITEM_VARIANTS}
+        className="flex items-center gap-2">
+        <MotionPress>
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? "Enregistrement..." : submitLabel}
+          </Button>
+        </MotionPress>
         {secondaryAction}
-      </div>
-    </form>
+      </motion.div>
+    </motion.form>
   )
 }

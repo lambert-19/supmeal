@@ -1,16 +1,16 @@
 import { Link } from "react-router-dom"
-import { motion, useMotionValue, useReducedMotion, useSpring, useTransform } from "framer-motion"
+import { motion, useReducedMotion } from "framer-motion"
 import { ChefHat, Clock, Heart, Images, Users } from "lucide-react"
 import { toast } from "sonner"
 
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { TiltCard } from "@/components/ui/tilt-card"
 import { useRecipesStore } from "@/lib/stores/recipes-store"
 import { apiErrorMessage } from "@/lib/api"
 
 const MAX_VISIBLE_TAGS = 3
-const TILT_RANGE = 10
 
 export function RecipeCard({ recipe }) {
   const toggleFavorite = useRecipesStore((s) => s.toggleFavorite)
@@ -18,35 +18,6 @@ export function RecipeCard({ recipe }) {
   const visibleTags = recipe.tags.slice(0, MAX_VISIBLE_TAGS)
   const hiddenTagCount = recipe.tags.length - visibleTags.length
   const prefersReducedMotion = useReducedMotion()
-
-  const pointerX = useMotionValue(0.5)
-  const pointerY = useMotionValue(0.5)
-  const rotateX = useSpring(useTransform(pointerY, [0, 1], [TILT_RANGE, -TILT_RANGE]), {
-    stiffness: 300,
-    damping: 25,
-  })
-  const rotateY = useSpring(useTransform(pointerX, [0, 1], [-TILT_RANGE, TILT_RANGE]), {
-    stiffness: 300,
-    damping: 25,
-  })
-  const glareX = useTransform(pointerX, [0, 1], ["0%", "100%"])
-  const glareY = useTransform(pointerY, [0, 1], ["0%", "100%"])
-  const glareBackground = useTransform(
-    [glareX, glareY],
-    ([x, y]) => `radial-gradient(circle at ${x} ${y}, color-mix(in oklch, white, transparent 60%), transparent 60%)`
-  )
-
-  function handlePointerMove(event) {
-    if (prefersReducedMotion) return
-    const bounds = event.currentTarget.getBoundingClientRect()
-    pointerX.set((event.clientX - bounds.left) / bounds.width)
-    pointerY.set((event.clientY - bounds.top) / bounds.height)
-  }
-
-  function handlePointerLeave() {
-    pointerX.set(0.5)
-    pointerY.set(0.5)
-  }
 
   async function handleToggleFavorite() {
     try {
@@ -57,12 +28,7 @@ export function RecipeCard({ recipe }) {
   }
 
   return (
-    <motion.div
-      onPointerMove={handlePointerMove}
-      onPointerLeave={handlePointerLeave}
-      style={prefersReducedMotion ? undefined : { rotateX, rotateY, transformPerspective: 800 }}
-      whileHover={prefersReducedMotion ? undefined : { scale: 1.02 }}
-      className="group/recipe-card relative">
+    <TiltCard glare>
       <Card className="relative overflow-hidden py-0">
         <Link to={`/recipes/${recipe.id}`} className="block">
           <div className="relative aspect-4/3 bg-muted">
@@ -78,13 +44,6 @@ export function RecipeCard({ recipe }) {
                 <Images className="size-3" />
                 {recipe.images.length}
               </span>
-            )}
-            {!prefersReducedMotion && (
-              <motion.div
-                aria-hidden
-                className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover/recipe-card:opacity-100"
-                style={{ background: glareBackground }}
-              />
             )}
           </div>
         </Link>
@@ -128,6 +87,6 @@ export function RecipeCard({ recipe }) {
           )}
         </CardContent>
       </Card>
-    </motion.div>
+    </TiltCard>
   )
 }

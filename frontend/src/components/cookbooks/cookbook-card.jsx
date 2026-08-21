@@ -6,6 +6,7 @@ import { toast } from "sonner"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { TiltCard } from "@/components/ui/tilt-card"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import {
   AlertDialog,
@@ -47,80 +48,82 @@ export function CookbookCard({ cookbook }) {
   }
 
   return (
-    <Card className="relative h-full transition-colors hover:border-primary/40">
-      <Link to={`/cookbooks/${cookbook.id}`} className="block h-full">
-        <CardContent className="flex h-full flex-col gap-3 py-4">
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <BookOpen className="size-5" />
+    <TiltCard glare className="h-full">
+      <Card className="relative h-full">
+        <Link to={`/cookbooks/${cookbook.id}`} className="block h-full">
+          <CardContent className="flex h-full flex-col gap-3 py-4">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <BookOpen className="size-5" />
+              </div>
+              {role && <Badge variant="secondary">{ROLE_LABELS[role]}</Badge>}
             </div>
-            {role && <Badge variant="secondary">{ROLE_LABELS[role]}</Badge>}
-          </div>
 
-          <div className="space-y-1 pr-6">
-            <h3 className="font-heading text-sm font-semibold">{cookbook.name}</h3>
-            {cookbook.description && (
-              <p className="line-clamp-2 text-xs text-muted-foreground">{cookbook.description}</p>
-            )}
-          </div>
+            <div className="space-y-1 pr-6">
+              <h3 className="font-heading text-sm font-semibold">{cookbook.name}</h3>
+              {cookbook.description && (
+                <p className="line-clamp-2 text-xs text-muted-foreground">{cookbook.description}</p>
+              )}
+            </div>
 
-          <div className="mt-auto flex items-center gap-3 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1">
-              <Users className="size-3.5" />
-              {memberCount} membre{memberCount > 1 ? "s" : ""}
-            </span>
-            <span>
-              {cookbook.recipesCount} recette{cookbook.recipesCount > 1 ? "s" : ""}
-            </span>
-          </div>
-        </CardContent>
-      </Link>
+            <div className="mt-auto flex items-center gap-3 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1">
+                <Users className="size-3.5" />
+                {memberCount} membre{memberCount > 1 ? "s" : ""}
+              </span>
+              <span>
+                {cookbook.recipesCount} recette{cookbook.recipesCount > 1 ? "s" : ""}
+              </span>
+            </div>
+          </CardContent>
+        </Link>
 
-      {isCreator && (
-        <>
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="icon-sm"
-                  className="absolute top-2 right-2"
-                  aria-label={`Actions pour ${cookbook.name}`}
-                  onClick={(event) => event.preventDefault()}
-                />
-              }>
-              <MoreVertical className="size-4" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => navigate(`/cookbooks/${cookbook.id}/edit`)}>
-                <Pencil />
-                Modifier
-              </DropdownMenuItem>
-              <DropdownMenuItem variant="destructive" onClick={() => setConfirmOpen(true)}>
-                <Trash2 />
-                Supprimer
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+        {isCreator && (
+          <>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="icon-sm"
+                    className="absolute top-2 right-2"
+                    aria-label={`Actions pour ${cookbook.name}`}
+                    onClick={(event) => event.preventDefault()}
+                  />
+                }>
+                <MoreVertical className="size-4" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => navigate(`/cookbooks/${cookbook.id}/edit`)}>
+                  <Pencil />
+                  Modifier
+                </DropdownMenuItem>
+                <DropdownMenuItem variant="destructive" onClick={() => setConfirmOpen(true)}>
+                  <Trash2 />
+                  Supprimer
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-          <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Supprimer ce cookbook ?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Cette action est irréversible. « {cookbook.name} » et son partage avec les membres seront
-                  supprimés (les recettes elles-mêmes ne sont pas supprimées).
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Annuler</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDelete}>Supprimer</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </>
-      )}
-    </Card>
+            <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Supprimer ce cookbook ?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Cette action est irréversible. « {cookbook.name} » et son partage avec les membres seront
+                    supprimés (les recettes elles-mêmes ne sont pas supprimées).
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Annuler</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDelete}>Supprimer</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </>
+        )}
+      </Card>
+    </TiltCard>
   )
 }
