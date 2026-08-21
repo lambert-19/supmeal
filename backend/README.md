@@ -64,7 +64,7 @@ backend/
   app.js               construction de l'app Express (helmet, cors, cookie-parser, routers, error handler)
   prisma/
     schema.prisma        modèle de données complet (User, Recipe, Ingredient, Step, Cookbook, CookbookMember,
-                          PlanningEntry, Comment, Message, VerificationToken, OAuthAccount)
+                          PlanningEntry, Comment, Message, MessageReceipt, VerificationToken, OAuthAccount)
     migrations/            historique des migrations Prisma
   utils/
     prisma.js              instance PrismaClient singleton

@@ -85,7 +85,7 @@ Une première passe "niveau professionnel" (critère bonus) a aussi été faite 
 
 **Robustesse / architecture / performance :**
 - `components/error-boundary.jsx` (composant classe) enveloppe l'app dans `main.jsx`  écran de secours au lieu d'un écran blanc en cas d'erreur de rendu.
-- `App.jsx` charge les 14 pages via `React.lazy()` + `Suspense` (`components/page-loader.jsx`) au lieu d'imports statiques : le chunk principal est passé de 797 Ko à ~320 Ko (hors framer-motion), chaque page ne chargeant que son propre code à la navigation. `App.jsx` bloque aussi le rendu des routes derrière un `bootstrap()` de session (`GET /auth/me`) tant que le statut n'est pas `ready`, pour éviter un flash de redirection vers `/login` avant de savoir si le cookie est valide.
+- `App.jsx` charge les pages (17 à ce jour) via `React.lazy()` + `Suspense` (`components/page-loader.jsx`) au lieu d'imports statiques : le chunk principal est passé de 797 Ko à ~320 Ko (hors framer-motion), chaque page ne chargeant que son propre code à la navigation. `App.jsx` bloque aussi le rendu des routes derrière un `bootstrap()` de session (`GET /auth/me`) tant que le statut n'est pas `ready`, pour éviter un flash de redirection vers `/login` avant de savoir si le cookie est valide.
 - `loading="lazy"` sur toutes les images de recettes ; ajustements responsive ciblés sur `recipe-form.jsx` et l'en-tête de `cookbook-detail-page.jsx` ; `EmptyState` partagé partout (plus de `<p>` de secours isolés).
 - Infrastructure de tests `vitest` installée et configurée (`npm run test`) ; aucun fichier de test n'est présent pour l'instant.
 
