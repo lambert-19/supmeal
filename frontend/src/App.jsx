@@ -39,6 +39,9 @@ const CookbookDetailPage = lazy(() =>
 )
 const PlanningPage = lazy(() => import("@/pages/planning-page").then((m) => ({ default: m.PlanningPage })))
 const FavoritesPage = lazy(() => import("@/pages/favorites-page").then((m) => ({ default: m.FavoritesPage })))
+const SuggestionsPage = lazy(() =>
+  import("@/pages/suggestions-page").then((m) => ({ default: m.SuggestionsPage }))
+)
 const SettingsPage = lazy(() => import("@/pages/settings-page").then((m) => ({ default: m.SettingsPage })))
 const NotFoundPage = lazy(() => import("@/pages/not-found-page").then((m) => ({ default: m.NotFoundPage })))
 
@@ -113,6 +116,7 @@ function App() {
             <Route path="/cookbooks/:id/edit" element={<EditCookbookPage />} />
             <Route path="/planning" element={<PlanningPage />} />
             <Route path="/favorites" element={<FavoritesPage />} />
+            <Route path="/suggestions" element={<SuggestionsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Route>
 

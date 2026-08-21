@@ -4,7 +4,16 @@ import { CalendarDays, ChevronLeft, ChevronRight, Coffee, Moon, ShoppingCart, Su
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectSeparator,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { toast } from "sonner"
 
@@ -14,6 +23,7 @@ import { PageLoader } from "@/components/page-loader"
 import { usePlanningStore } from "@/lib/stores/planning-store"
 import { useMyPlanning } from "@/hooks/use-my-planning"
 import { useMyRecipes } from "@/hooks/use-my-recipes"
+import { useRecipeSuggestions } from "@/hooks/use-recipe-suggestions"
 import { apiErrorMessage } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import {
@@ -40,9 +50,16 @@ export function PlanningPage() {
   const removeEntry = usePlanningStore((s) => s.removeEntry)
   const status = usePlanningStore((s) => s.status)
   const myRecipes = useMyRecipes()
+  const { suggestions } = useRecipeSuggestions()
   const [weekOffset, setWeekOffset] = useState(0)
 
   const recipesById = useMemo(() => new Map(myRecipes.map((recipe) => [recipe.id, recipe])), [myRecipes])
+  const suggestedRecipes = useMemo(() => suggestions.slice(0, 4), [suggestions])
+  const suggestedIds = useMemo(() => new Set(suggestedRecipes.map((recipe) => recipe.id)), [suggestedRecipes])
+  const otherRecipes = useMemo(
+    () => myRecipes.filter((recipe) => !suggestedIds.has(recipe.id)),
+    [myRecipes, suggestedIds]
+  )
 
   const weekStart = useMemo(() => addDays(startOfWeek(new Date()), weekOffset * 7), [weekOffset])
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart])
@@ -217,11 +234,27 @@ export function PlanningPage() {
                               <SelectValue placeholder="Ajouter une recette" />
                             </SelectTrigger>
                             <SelectContent>
-                              {myRecipes.map((r) => (
-                                <SelectItem key={r.id} value={r.id}>
-                                  {r.title}
-                                </SelectItem>
-                              ))}
+                              {suggestedRecipes.length > 0 && (
+                                <>
+                                  <SelectGroup>
+                                    <SelectLabel>Suggestions</SelectLabel>
+                                    {suggestedRecipes.map((r) => (
+                                      <SelectItem key={r.id} value={r.id}>
+                                        {r.title}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectGroup>
+                                  <SelectSeparator />
+                                </>
+                              )}
+                              <SelectGroup>
+                                {suggestedRecipes.length > 0 && <SelectLabel>Toutes les recettes</SelectLabel>}
+                                {(suggestedRecipes.length > 0 ? otherRecipes : myRecipes).map((r) => (
+                                  <SelectItem key={r.id} value={r.id}>
+                                    {r.title}
+                                  </SelectItem>
+                                ))}
+                              </SelectGroup>
                             </SelectContent>
                           </Select>
                         )}

@@ -78,6 +78,33 @@ router.get("/", recipesController.list);
 
 /**
  * @swagger
+ * /recipes/suggestions:
+ *   get:
+ *     tags: [Recipes]
+ *     summary: Suggestions intelligentes de recettes
+ *     description: >
+ *       Classe les recettes de l'utilisateur connecté (hors favoris) selon son régime
+ *       alimentaire, sa cuisine préférée, la nouveauté par rapport à son planning, l'affinité
+ *       de tags avec ses favoris, et optionnellement les ingrédients qu'il indique avoir sous
+ *       la main. Les recettes contenant un allergène déclaré sont exclues.
+ *     parameters:
+ *       - in: query
+ *         name: ingredients
+ *         schema: { type: string }
+ *         description: Liste d'ingrédients disponibles, séparés par des virgules.
+ *       - in: query
+ *         name: limit
+ *         schema: { type: integer, default: 8, minimum: 1, maximum: 20 }
+ *     responses:
+ *       200:
+ *         description: Recettes suggérées, triées par pertinence décroissante.
+ *         content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Recipe' } } } }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ */
+router.get("/suggestions", recipesController.suggestions);
+
+/**
+ * @swagger
  * /recipes/{id}:
  *   get:
  *     tags: [Recipes]

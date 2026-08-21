@@ -103,6 +103,12 @@ model Recipe {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
+  // Colonne générée par Postgres (titre + tags + source), indexée en GIN pour la
+  // recherche plein texte de GET /recipes?q= (utils/recipes.service.js#findMatchingRecipeIds) —
+  // définie en SQL brut dans la migration (Prisma ne sait pas déclarer une colonne
+  // GENERATED), Unsupported() ici uniquement pour que le schéma reste introspectable.
+  searchVector Unsupported("tsvector")?
+
   ingredients     Ingredient[]
   steps           Step[]
   comments        Comment[]

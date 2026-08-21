@@ -41,4 +41,13 @@ const toggleFavorite = asyncHandler(async (req, res) => {
   res.json(toRecipeDTO(recipe));
 });
 
-module.exports = { list, getOne, create, update, remove, toggleFavorite };
+const suggestions = asyncHandler(async (req, res) => {
+  const { ingredients, limit } = req.query;
+  const ingredientList = ingredients
+    ? (Array.isArray(ingredients) ? ingredients : String(ingredients).split(",")).map((s) => s.trim()).filter(Boolean)
+    : [];
+  const results = await recipesService.suggestForUser(req.user.id, { ingredients: ingredientList, limit });
+  res.json(results.map(({ recipe, score, reasons }) => ({ ...toRecipeDTO(recipe), score, reasons })));
+});
+
+module.exports = { list, getOne, create, update, remove, toggleFavorite, suggestions };

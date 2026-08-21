@@ -2,6 +2,7 @@ const { Server } = require("socket.io");
 const prisma = require("./prisma");
 const { verifyToken } = require("./jwt");
 const { getCookbookRole } = require("./permissions");
+const { resolveRecipeAccess } = require("./recipeAccess");
 const allowedOrigins = require("./corsOrigins");
 const messagesService = require("../services/messages.service");
 
@@ -117,6 +118,24 @@ function initSocket(server) {
       if (typeof cookbookId === "string") socket.leave(`cookbook:${cookbookId}`);
     });
 
+    // Un utilisateur ne rejoint la room d'une recette que si l'accès lui est
+    // réellement reconnu (propriétaire ou membre du cookbook auquel elle est
+    // rattachée) — même garde-fou que resolveRecipeAccess côté REST (GET
+    // /recipes/:id), pour ne pas pouvoir écouter les commentaires d'une recette
+    // à laquelle on n'a pas accès en devinant son id.
+    socket.on("recipe:join", async (recipeId) => {
+      if (typeof recipeId !== "string") return;
+      const recipe = await prisma.recipe.findUnique({ where: { id: recipeId }, select: { ownerId: true, cookbookId: true } });
+      if (!recipe) return;
+      const { canView } = await resolveRecipeAccess(recipe, socket.userId);
+      if (!canView) return;
+      socket.join(`recipe:${recipeId}`);
+    });
+
+    socket.on("recipe:leave", (recipeId) => {
+      if (typeof recipeId === "string") socket.leave(`recipe:${recipeId}`);
+    });
+
     // Accusés de réception (livré/lu). Le seul garde-fou nécessaire ici est
     // d'avoir rejoint la room au préalable (donc déjà passé la vérification de
     // rôle de cookbook:join) — pas besoin de rerequêter Prisma à chaque frappe.
@@ -164,4 +183,14 @@ function emitNewMessage(cookbookId, message) {
   io.to(`cookbook:${cookbookId}`).emit("message:new", message);
 }
 
-module.exports = { initSocket, emitNewMessage };
+function emitNewComment(recipeId, comment) {
+  if (!io) return;
+  io.to(`recipe:${recipeId}`).emit("comment:new", comment);
+}
+
+function emitCommentDeleted(recipeId, commentId) {
+  if (!io) return;
+  io.to(`recipe:${recipeId}`).emit("comment:deleted", { id: commentId });
+}
+
+module.exports = { initSocket, emitNewMessage, emitNewComment, emitCommentDeleted };

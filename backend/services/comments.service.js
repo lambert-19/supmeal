@@ -21,6 +21,7 @@ async function remove(id, authorId) {
   if (!comment) throw new AppError(404, "Commentaire introuvable.");
   if (comment.authorId !== authorId) throw new AppError(403, "Vous n'êtes pas l'auteur de ce commentaire.");
   await prisma.comment.delete({ where: { id } });
+  return { recipeId: comment.recipeId };
 }
 
 module.exports = { listByRecipe, create, remove };

@@ -46,7 +46,7 @@ services:
     environment:
       NODE_ENV: development
       PORT: 4000
-      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-supmeal}@db:5432/supmeal?schema=public
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD_URLENC:-supmeal}@db:5432/supmeal?schema=public
       BACKEND_URL: http://localhost:4000
       FRONTEND_URL: http://localhost:5173
       CORS_ORIGIN: http://localhost:5173

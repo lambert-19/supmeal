@@ -23,12 +23,29 @@ export const useCommentsStore = create((set) => ({
 
   async addComment(recipeId, text) {
     const { data } = await api.post(`/recipes/${recipeId}/comments`, { text })
-    set((state) => ({ comments: [...state.comments, data] }))
+    // Dédoublonné par id : le serveur rediffuse aussi ce commentaire via
+    // Socket.io à tous les clients de la room, y compris son propre auteur.
+    set((state) => (state.comments.some((c) => c.id === data.id) ? state : { comments: [...state.comments, data] }))
     return data
   },
 
   async deleteComment(id) {
     await api.delete(`/comments/${id}`)
     set((state) => ({ comments: state.comments.filter((c) => c.id !== id) }))
+  },
+
+  // Commentaire reçu en temps réel via Socket.io (voir hooks/use-recipe-comments.js).
+  receiveComment(recipeId, comment) {
+    set((state) => {
+      if (state.recipeId !== recipeId || state.comments.some((c) => c.id === comment.id)) return state
+      return { comments: [...state.comments, comment] }
+    })
+  },
+
+  removeCommentRealtime(recipeId, commentId) {
+    set((state) => {
+      if (state.recipeId !== recipeId) return state
+      return { comments: state.comments.filter((c) => c.id !== commentId) }
+    })
   },
 }))

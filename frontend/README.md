@@ -15,7 +15,7 @@ Client web de SUPMEAL (gestion de recettes et planification de repas). Ce client
 - **react-dropzone** pour l'upload d'images par glisser-déposer (recettes)
 - **emoji-picker-react** pour le sélecteur d'emoji du chat de cookbook
 - **embla-carousel-react** (via le composant `carousel` de shadcn) pour le carrousel d'images d'une recette
-- **socket.io-client** (`lib/socket.js`) : connexion unique et paresseuse, authentifiée par le cookie de session (`withCredentials`), pilotée par `auth-store.js` (connect au login/bootstrap, disconnect au logout/session expirée)  utilisée pour la messagerie de cookbook en temps réel (voir plus bas). Les commentaires de recette restent en REST classique.
+- **socket.io-client** (`lib/socket.js`) : connexion unique et paresseuse, authentifiée par le cookie de session (`withCredentials`), pilotée par `auth-store.js` (connect au login/bootstrap, disconnect au logout/session expirée)  utilisée pour la messagerie de cookbook et, désormais, les commentaires de recette (voir plus bas).
 - **papaparse** pour l'export/import CSV des recettes, **file-saver** pour déclencher le téléchargement des fichiers exportés
 - **framer-motion** pour les animations (effet 3D au survol des cartes recettes, transitions de page, apparition échelonnée des grilles, micro-interactions)  toujours conditionnées par `useReducedMotion()`
 - **vitest** installé pour les tests unitaires (`npm run test`), configuré dans `vite.config.js`  aucun fichier de test présent actuellement
@@ -47,7 +47,7 @@ src/
     *.jsx          composants partagés (page-header, empty-state, form-field, theme-toggle, tag-input, error-boundary, page-loader, motion-press)
   layouts/         layout d'authentification (écran scindé, fond animé) et layout applicatif (sidebar + topbar, transitions de page)
   routes/          garde-fous de routage (route protégée / route publique uniquement)
-  hooks/           hooks partagés (use-my-recipes : aussi réutilisé par la page Favoris, use-my-cookbooks, use-my-planning, use-recipe-comments, use-cookbook-messages)  déclenchent le fetch initial sur le store zustand correspondant et exposent la donnée déjà à jour
+  hooks/           hooks partagés (use-my-recipes : aussi réutilisé par la page Favoris, use-my-cookbooks, use-my-planning, use-recipe-comments, use-cookbook-messages, use-recipe-suggestions)  déclenchent le fetch initial sur le store zustand correspondant et exposent la donnée déjà à jour
   pages/
     auth/          connexion, inscription
     settings/       les 4 onglets de la page Paramètres (profil, sécurité, connexions, préférences)
@@ -59,7 +59,7 @@ src/
                     intercepteur de réponse : un 401 hors `/auth/*` déclenche l'event `supmeal:unauthorized`
                     (écouté par auth-store.js pour vider la session et rediriger vers /login)
     stores/        state global zustand  un store par domaine (auth-store.js, recipes-store.js, cookbooks-store.js,
-                    planning-store.js, comments-store.js, messages-store.js), chacun avec un état `status`
+                    planning-store.js, comments-store.js, messages-store.js, suggestions-store.js), chacun avec un état `status`
                     (`idle`/`loading`/`loaded`/`error`) et des actions `async` qui appellent `lib/api.js`
     schemas/        schémas de validation zod (auth.js, settings.js, recipe.js, cookbook.js)
     constants/      listes de référence (régimes, cuisines, allergènes, fournisseurs OAuth2, unités, tags, rôles de cookbook, taille max image)
@@ -77,7 +77,7 @@ src/
 
 ## État d'avancement
 
-Le routing, le layout applicatif (sidebar/topbar, thème clair/sombre), les pages de connexion/inscription, la page Paramètres (profil, sécurité, connexions OAuth2, préférences culinaires), la gestion des recettes (liste, création, édition, détail, favoris, jusqu'à 10 images en carrousel), la recherche/filtrage des recettes, les cookbooks partagés (création, invitation, rôles, rattachement de recettes), la page Favoris, le Planning des repas, la Messagerie/Commentaires et l'Import/Export des recettes sont en place. **Toutes les fonctionnalités sont désormais branchées sur la vraie API** (`backend/`, voir son README pour le détail des endpoints)  plus aucun store zustand ne persiste en `localStorage`, l'authentification passe par un cookie de session httpOnly. L'OAuth2 Google/GitHub est désormais réel (connexion, inscription et liaison depuis Paramètres > Connexions, voir plus bas). Reste en dehors du périmètre actuel : les commentaires de recette en temps réel (la messagerie de cookbook, elle, est passée en temps réel via Socket.io). Voir `SUIVI_PROJET.md` pour le détail complet.
+Le routing, le layout applicatif (sidebar/topbar, thème clair/sombre), les pages de connexion/inscription, la page Paramètres (profil, sécurité, connexions OAuth2, préférences culinaires), la gestion des recettes (liste, création, édition, détail, favoris, jusqu'à 10 images en carrousel), la recherche/filtrage des recettes, les cookbooks partagés (création, invitation, rôles, rattachement de recettes), la page Favoris, les suggestions intelligentes de recettes, le Planning des repas, la Messagerie/Commentaires et l'Import/Export des recettes sont en place. **Toutes les fonctionnalités sont désormais branchées sur la vraie API** (`backend/`, voir son README pour le détail des endpoints)  plus aucun store zustand ne persiste en `localStorage`, l'authentification passe par un cookie de session httpOnly. L'OAuth2 Google/GitHub est désormais réel (connexion, inscription et liaison depuis Paramètres > Connexions, voir plus bas). La messagerie de cookbook et les commentaires de recette sont tous deux en temps réel via Socket.io. Voir `SUIVI_PROJET.md` pour le détail complet.
 
 Une première passe "niveau professionnel" (critère bonus) a aussi été faite : gestion d'erreurs, tests unitaires, découpage du bundle par route, cohérence des permissions, et polish visuel 2D/3D  voir la section dédiée ci-dessous.
 
@@ -111,7 +111,7 @@ Sur `recipes-page.jsx`, `components/recipes/recipe-import-export.jsx` ajoute deu
   - **Présence en ligne / "vu pour la dernière fois"** : `hooks/use-cookbook-presence.js` rejoint la room de présence du cookbook au niveau de la page détail (`cookbook-detail-page.jsx`, pas dans `CookbookChat`  sinon le suivi s'arrêterait en changeant d'onglet, les `TabsContent` inactifs étant démontés) et alimente `lib/stores/presence-store.js`. Petit point vert sur l'avatar dans le chat pour les auteurs en ligne ; dans l'onglet Membres, statut "En ligne" ou "Vu {temps relatif}" (`lib/utils.js#formatLastSeen`, `Intl.RelativeTimeFormat`) par membre.
   - **Coches de statut (envoyé / distribué / lu)** : sur ses propres messages uniquement  une coche grise (envoyé), deux coches grises (distribué à au moins un autre membre) ou deux coches bleues (lu par au moins un autre membre). `hooks/use-cookbook-messages.js` émet `cookbook:delivered` dès qu'un message d'un autre auteur arrive côté client (fetch initial ou `message:new`), et `cookbook:seen` seulement si l'onglet est visible à ce moment (`document.visibilityState`, avec rattrapage sur l'event `visibilitychange` si l'onglet était en arrière-plan)  les mises à jour (`receipts:update`) sont appliquées en direct via `messages-store.js#applyReceiptUpdates`, sans refetch.
   - **"X est en train d'écrire..."** : `cookbook-chat.jsx` émet `cookbook:typing` (débattu à l'échelle de la frappe, arrêt automatique après 3s d'inactivité ou à l'envoi/perte de focus du champ) et affiche les autres membres actuellement en train d'écrire (état local avec expiration de sécurité à 5s, au cas où l'event d'arrêt serait perdu  déconnexion brutale, etc.).
-- **Commentaires par recette** : section en bas de `recipes/recipe-detail-page.jsx` (`components/recipes/recipe-comments.jsx`), visible par le propriétaire de la recette et par tout membre du cookbook auquel elle est rattachée (contrôle d'accès géré par `GET /recipes/:id`, qui renvoie 404 si non autorisé) ; le formulaire de commentaire suit la même règle `canComment`, également revérifiée côté serveur. Chacun ne peut supprimer que ses propres commentaires (403 sinon). Branché sur `GET/POST /recipes/:id/comments`, `DELETE /comments/:commentId` (`lib/stores/comments-store.js`)  **toujours en REST classique**, pas de temps réel (Socket.io n'a été branché que sur la messagerie de cookbook pour l'instant).
+- **Commentaires par recette** : section en bas de `recipes/recipe-detail-page.jsx` (`components/recipes/recipe-comments.jsx`), visible par le propriétaire de la recette et par tout membre du cookbook auquel elle est rattachée (contrôle d'accès géré par `GET /recipes/:id`, qui renvoie 404 si non autorisé) ; le formulaire de commentaire suit la même règle `canComment`, également revérifiée côté serveur. Chacun ne peut supprimer que ses propres commentaires (403 sinon). Branché sur `GET/POST /recipes/:id/comments`, `DELETE /comments/:commentId` (`lib/stores/comments-store.js`) **et désormais en temps réel via Socket.io** (`hooks/use-recipe-comments.js` rejoint la room `recipe:<id>` avec le même contrôle d'accès que le REST, écoute `comment:new`/`comment:deleted`)  plus besoin de recharger la page pour voir le commentaire d'un autre utilisateur.
 
 ### Planning des repas
 
@@ -120,6 +120,14 @@ Sur `recipes-page.jsx`, `components/recipes/recipe-import-export.jsx` ajoute deu
 ### Favoris
 
 `pages/favorites-page.jsx` réutilise `useMyRecipes()` filtré sur `favorite: true` et les mêmes `RecipeCard` que `/recipes` (bascule favori directement possible depuis cette page). Deux états vides distincts : aucune recette créée du tout (bouton "Nouvelle recette" affiché) vs des recettes existent déjà mais aucune n'est encore marquée favorite.
+
+### Suggestions intelligentes de recettes
+
+`components/recipes/recipe-suggestions.jsx` (`lib/stores/suggestions-store.js`, `hooks/use-recipe-suggestions.js`) affiche des recettes de la collection de l'utilisateur choisies par `GET /recipes/suggestions` (régime alimentaire, cuisine préférée, allergies exclues, nouveauté par rapport au planning, affinité avec les favoris — voir `backend/README.md` pour le détail du scoring) sous forme de carrousel horizontal de `RecipeCard`, chacune annotée de badges expliquant *pourquoi* elle est suggérée (ex. "Correspond à votre régime (Végétarien)"). Un champ "ingrédients sous la main" permet de filtrer/booster les recettes qui utilisent ce qu'on a déjà en cuisine.
+
+- **Page dédiée** `/suggestions` (nav "Suggestions", icône `Sparkles`) : affichage complet avec état vide explicatif.
+- **Page Recettes** : section compacte en haut de `/recipes` (masquée automatiquement si aucune suggestion pertinente et aucun filtre ingrédients actif, pour ne pas encombrer une collection encore vide).
+- **Page Planning** : le sélecteur d'un créneau vide fait remonter jusqu'à 4 recettes suggérées dans un groupe "Suggestions" séparé du reste de la liste, pour éviter de parcourir toute la collection à chaque case à remplir.
 
 ### Recherche et filtrage des recettes
 

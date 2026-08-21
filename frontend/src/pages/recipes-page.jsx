@@ -12,6 +12,7 @@ import { MotionPress } from "@/components/motion-press"
 import { PageLoader } from "@/components/page-loader"
 import { RecipeCard } from "@/components/recipes/recipe-card"
 import { RecipeImportExport } from "@/components/recipes/recipe-import-export"
+import { RecipeSuggestions } from "@/components/recipes/recipe-suggestions"
 import { useMyRecipes } from "@/hooks/use-my-recipes"
 import { useRecipesStore } from "@/lib/stores/recipes-store"
 import { cn } from "@/lib/utils"
@@ -100,6 +101,8 @@ export function RecipesPage() {
           </div>
         }
       />
+
+      {recipes.length > 0 && <RecipeSuggestions compact />}
 
       {recipes.length > 0 && (
         <div className="space-y-3 rounded-xl border border-border p-4">
