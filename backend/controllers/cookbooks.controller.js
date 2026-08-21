@@ -1,4 +1,4 @@
-const prisma = require("../utils/prisma");
+const usersService = require("../services/users.service");
 const cookbooksService = require("../services/cookbooks.service");
 const recipesService = require("../services/recipes.service");
 const { toRecipeDTO, toCookbookDTO, toCookbookMemberDTO } = require("../utils/serializers");
@@ -14,7 +14,7 @@ function requireRole(req) {
 }
 
 const list = asyncHandler(async (req, res) => {
-  const currentUser = await prisma.user.findUnique({ where: { id: req.user.id }, select: { id: true, email: true } });
+  const currentUser = await usersService.getBasicById(req.user.id);
   const cookbooks = await cookbooksService.listMine(currentUser);
   res.json(cookbooks.map(toCookbookDTO));
 });

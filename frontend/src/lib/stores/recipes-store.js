@@ -1,6 +1,7 @@
 import { create } from "zustand"
 
-import { api, apiErrorMessage } from "@/lib/api"
+import { api } from "@/lib/api"
+import { fetchWithStatus } from "@/lib/stores/store-helpers"
 
 export const useRecipesStore = create((set) => ({
   recipes: [],
@@ -8,13 +9,7 @@ export const useRecipesStore = create((set) => ({
   error: null,
 
   async fetchAll() {
-    set({ status: "loading", error: null })
-    try {
-      const { data } = await api.get("/recipes")
-      set({ recipes: data, status: "loaded" })
-    } catch (error) {
-      set({ status: "error", error: apiErrorMessage(error, "Impossible de charger les recettes.") })
-    }
+    await fetchWithStatus(set, "recipes", () => api.get("/recipes").then((r) => r.data), "Impossible de charger les recettes.")
   },
 
   async addRecipe(payload) {

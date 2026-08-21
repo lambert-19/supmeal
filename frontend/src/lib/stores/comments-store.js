@@ -1,6 +1,7 @@
 import { create } from "zustand"
 
-import { api, apiErrorMessage } from "@/lib/api"
+import { api } from "@/lib/api"
+import { fetchWithStatus } from "@/lib/stores/store-helpers"
 
 // Un seul jeu de commentaires en mémoire à la fois (ceux de la recette
 // actuellement affichée) — remplacé intégralement à chaque fetch, pas de cache
@@ -12,13 +13,13 @@ export const useCommentsStore = create((set) => ({
   error: null,
 
   async fetchByRecipe(recipeId) {
-    set({ status: "loading", error: null, recipeId })
-    try {
-      const { data } = await api.get(`/recipes/${recipeId}/comments`)
-      set({ comments: data, status: "loaded" })
-    } catch (error) {
-      set({ status: "error", error: apiErrorMessage(error, "Impossible de charger les commentaires.") })
-    }
+    await fetchWithStatus(
+      set,
+      "comments",
+      () => api.get(`/recipes/${recipeId}/comments`).then((r) => r.data),
+      "Impossible de charger les commentaires.",
+      { recipeId }
+    )
   },
 
   async addComment(recipeId, text) {

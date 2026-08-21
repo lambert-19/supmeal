@@ -1,6 +1,7 @@
 import { create } from "zustand"
 
-import { api, apiErrorMessage } from "@/lib/api"
+import { api } from "@/lib/api"
+import { fetchWithStatus } from "@/lib/stores/store-helpers"
 
 export const useSuggestionsStore = create((set) => ({
   suggestions: [],
@@ -8,13 +9,12 @@ export const useSuggestionsStore = create((set) => ({
   error: null,
 
   async fetchSuggestions(ingredients = []) {
-    set({ status: "loading", error: null })
-    try {
-      const params = ingredients.length > 0 ? { ingredients: ingredients.join(",") } : {}
-      const { data } = await api.get("/recipes/suggestions", { params })
-      set({ suggestions: data, status: "loaded" })
-    } catch (error) {
-      set({ status: "error", error: apiErrorMessage(error, "Impossible de charger les suggestions.") })
-    }
+    const params = ingredients.length > 0 ? { ingredients: ingredients.join(",") } : {}
+    await fetchWithStatus(
+      set,
+      "suggestions",
+      () => api.get("/recipes/suggestions", { params }).then((r) => r.data),
+      "Impossible de charger les suggestions."
+    )
   },
 }))

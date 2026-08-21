@@ -1,4 +1,5 @@
 const prisma = require("../utils/prisma");
+const usersService = require("../services/users.service");
 const AppError = require("../utils/AppError");
 const { getCookbookRole } = require("../utils/permissions");
 const asyncHandler = require("../utils/asyncHandler");
@@ -14,7 +15,7 @@ const loadCookbookAndRole = asyncHandler(async (req, res, next) => {
   });
   if (!cookbook) throw new AppError(404, "Cookbook introuvable.");
 
-  const currentUser = await prisma.user.findUnique({ where: { id: req.user.id }, select: { id: true, email: true } });
+  const currentUser = await usersService.getBasicById(req.user.id);
   const role = getCookbookRole(cookbook, currentUser);
 
   req.cookbook = cookbook;

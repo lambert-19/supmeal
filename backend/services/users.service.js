@@ -2,6 +2,17 @@ const prisma = require("../utils/prisma");
 const { hashPassword, comparePassword } = require("../utils/password");
 const AppError = require("../utils/AppError");
 
+// Forme minimale requise par getCookbookRole (utils/permissions.js) pour résoudre
+// le rôle d'un utilisateur sur un cookbook — réutilisée par recipeAccess.js,
+// loadCookbook.js et cookbooks.controller.js plutôt que réinterrogée à l'identique.
+async function getBasicById(userId) {
+  return prisma.user.findUnique({ where: { id: userId }, select: { id: true, email: true } });
+}
+
+async function getWithOAuthAccounts(userId) {
+  return prisma.user.findUnique({ where: { id: userId }, include: { oauthAccounts: true } });
+}
+
 async function updateProfile(userId, { name }) {
   return prisma.user.update({ where: { id: userId }, data: { name }, include: { oauthAccounts: true } });
 }
@@ -30,4 +41,4 @@ async function updatePreferences(userId, { dietaryRegime, allergies, favoriteCui
   });
 }
 
-module.exports = { updateProfile, changePassword, updatePreferences };
+module.exports = { getBasicById, getWithOAuthAccounts, updateProfile, changePassword, updatePreferences };

@@ -1,6 +1,7 @@
 import { create } from "zustand"
 
-import { api, apiErrorMessage } from "@/lib/api"
+import { api } from "@/lib/api"
+import { fetchWithStatus } from "@/lib/stores/store-helpers"
 
 // Un seul jeu de messages en mémoire à la fois (ceux du cookbook actuellement
 // affiché) — remplacé intégralement à chaque fetch, pas de cache multi-cookbooks.
@@ -11,13 +12,13 @@ export const useMessagesStore = create((set) => ({
   error: null,
 
   async fetchByCookbook(cookbookId) {
-    set({ status: "loading", error: null, cookbookId })
-    try {
-      const { data } = await api.get(`/cookbooks/${cookbookId}/messages`)
-      set({ messages: data, status: "loaded" })
-    } catch (error) {
-      set({ status: "error", error: apiErrorMessage(error, "Impossible de charger les messages.") })
-    }
+    await fetchWithStatus(
+      set,
+      "messages",
+      () => api.get(`/cookbooks/${cookbookId}/messages`).then((r) => r.data),
+      "Impossible de charger les messages.",
+      { cookbookId }
+    )
   },
 
   async addMessage(cookbookId, { text, imageUrl } = {}) {

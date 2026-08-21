@@ -1,6 +1,7 @@
 import { create } from "zustand"
 
-import { api, apiErrorMessage } from "@/lib/api"
+import { api } from "@/lib/api"
+import { fetchWithStatus } from "@/lib/stores/store-helpers"
 
 export const usePlanningStore = create((set) => ({
   entries: [],
@@ -8,13 +9,12 @@ export const usePlanningStore = create((set) => ({
   error: null,
 
   async fetchRange(from, to) {
-    set({ status: "loading", error: null })
-    try {
-      const { data } = await api.get("/planning", { params: { from, to } })
-      set({ entries: data, status: "loaded" })
-    } catch (error) {
-      set({ status: "error", error: apiErrorMessage(error, "Impossible de charger le planning.") })
-    }
+    await fetchWithStatus(
+      set,
+      "entries",
+      () => api.get("/planning", { params: { from, to } }).then((r) => r.data),
+      "Impossible de charger le planning."
+    )
   },
 
   async setEntry(payload) {

@@ -1,4 +1,5 @@
 const prisma = require("./prisma");
+const usersService = require("../services/users.service");
 const { getCookbookRole, canComment } = require("./permissions");
 
 async function resolveRecipeAccess(recipe, userId) {
@@ -10,7 +11,7 @@ async function resolveRecipeAccess(recipe, userId) {
       where: { id: recipe.cookbookId },
       include: { members: true },
     });
-    const currentUser = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, email: true } });
+    const currentUser = await usersService.getBasicById(userId);
     role = cookbook ? getCookbookRole(cookbook, currentUser) : null;
   }
 
