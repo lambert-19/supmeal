@@ -7,6 +7,13 @@ Le projet est découpé en deux dossiers indépendants, chacun avec son propre R
 - [`backend/`](backend/README.md)  API REST (Node.js + Express 5 + Prisma + PostgreSQL) : authentification, permissions, temps réel (Socket.io), OAuth2, documentation interactive (Swagger).
 - [`frontend/`](frontend/README.md)  Client web (React 19 + Vite + Tailwind) consommant cette API.
 
+## Démo en ligne
+
+- Application : **https://supmeal.vercel.app**
+- API : **https://supmeal.onrender.com** (documentation interactive : `/api-docs`)
+
+Hébergement gratuit (Vercel + Render + Neon) — le backend peut mettre jusqu'à ~50 secondes à répondre après une période d'inactivité 
+
 ## Démarrage rapide
 
 ```bash
