@@ -21,6 +21,11 @@ const allowedOrigins = require("./utils/corsOrigins");
 
 const app = express();
 
+// Nécessaire derrière un reverse proxy (Render, etc.) : sans ça, Express voit
+// l'IP du proxy pour toutes les requêtes, pas celle du client — express-rate-
+// limit ne peut alors plus distinguer les utilisateurs par IP.
+app.set("trust proxy", 1);
+
 app.use(helmet());
 app.use(
   cors({

@@ -12,6 +12,10 @@ function getTransporter() {
       port: Number(process.env.SMTP_PORT || 587),
       secure: process.env.SMTP_SECURE === "true",
       auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } : undefined,
+      // Certains hébergeurs (ex. Render) n'ont pas de sortie réseau IPv6 : sans
+      // ça, Node résout smtp.gmail.com en IPv6 en premier et attend le timeout
+      // complet (ENETUNREACH, ~2 min) avant d'abandonner cette tentative.
+      family: 4,
     });
   } else {
     transporter = nodemailer.createTransport({ jsonTransport: true });
