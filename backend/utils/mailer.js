@@ -27,10 +27,12 @@ function getTransporter() {
 
 // Beaucoup d'hébergeurs (Render inclus) voient leurs connexions SMTP
 // sortantes vers Gmail bloquées ou expirer (restriction réseau côté hébergeur,
-// ou anti-spam côté Google contre les plages d'IP de cloud) — Resend envoie
-// par API HTTPS (jamais bloquée de la même façon), utilisé en priorité dès
-// que sa clé est configurée ; le SMTP direct reste le chemin par défaut en
-// local (voir getTransporter) où ce blocage n'existe pas.
+// ou anti-spam côté Google contre les plages d'IP de cloud) — Mailjet et
+// Resend envoient par API HTTPS (jamais bloquée de la même façon) ; le SMTP
+// direct reste le chemin par défaut en local (voir getTransporter) où ce
+// blocage n'existe pas. Mailjet est essayé en premier : contrairement à
+// Resend, il autorise l'envoi vers n'importe quel destinataire dès qu'un
+// simple email expéditeur est vérifié (pas besoin de posséder un domaine).
 function getResendClient() {
   if (resendClient) return resendClient;
   const { Resend } = require("resend");
@@ -38,8 +40,34 @@ function getResendClient() {
   return resendClient;
 }
 
+function parseFromHeader(from) {
+  const match = from.match(/^(.*)<(.+)>$/);
+  if (match) return { Name: match[1].trim().replace(/^"|"$/g, ""), Email: match[2].trim() };
+  return { Email: from.trim() };
+}
+
+async function sendViaMailjet({ from, to, subject, html, text }) {
+  const auth = Buffer.from(`${process.env.MAILJET_API_KEY}:${process.env.MAILJET_API_SECRET}`).toString("base64");
+  const res = await fetch("https://api.mailjet.com/v3.1/send", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Basic ${auth}` },
+    body: JSON.stringify({
+      Messages: [{ From: parseFromHeader(from), To: [{ Email: to }], Subject: subject, TextPart: text, HTMLPart: html }],
+    }),
+  });
+  const body = await res.json().catch(() => null);
+  if (!res.ok || body?.Messages?.[0]?.Status !== "success") {
+    const errMsg = body?.Messages?.[0]?.Errors?.[0]?.ErrorMessage || body?.ErrorMessage || res.statusText;
+    throw new Error(`Échec de l'envoi de l'email (Mailjet) : ${errMsg}`);
+  }
+}
+
 async function sendMail({ to, subject, html, text }) {
   const from = process.env.MAIL_FROM || "SUPMEAL <no-reply@supmeal.fr>";
+
+  if (process.env.MAILJET_API_KEY) {
+    return sendViaMailjet({ from, to, subject, html, text });
+  }
 
   if (process.env.RESEND_API_KEY) {
     const { error } = await getResendClient().emails.send({ from, to, subject, html, text });
