@@ -2,6 +2,7 @@ const nodemailer = require("nodemailer");
 const { renderEmailLayout, button, linkFallback, TEXT_COLOR } = require("./email-templates");
 
 let transporter;
+let resendClient;
 
 function getTransporter() {
   if (transporter) return transporter;
@@ -24,8 +25,28 @@ function getTransporter() {
   return transporter;
 }
 
+// Beaucoup d'hébergeurs (Render inclus) voient leurs connexions SMTP
+// sortantes vers Gmail bloquées ou expirer (restriction réseau côté hébergeur,
+// ou anti-spam côté Google contre les plages d'IP de cloud) — Resend envoie
+// par API HTTPS (jamais bloquée de la même façon), utilisé en priorité dès
+// que sa clé est configurée ; le SMTP direct reste le chemin par défaut en
+// local (voir getTransporter) où ce blocage n'existe pas.
+function getResendClient() {
+  if (resendClient) return resendClient;
+  const { Resend } = require("resend");
+  resendClient = new Resend(process.env.RESEND_API_KEY);
+  return resendClient;
+}
+
 async function sendMail({ to, subject, html, text }) {
   const from = process.env.MAIL_FROM || "SUPMEAL <no-reply@supmeal.fr>";
+
+  if (process.env.RESEND_API_KEY) {
+    const { error } = await getResendClient().emails.send({ from, to, subject, html, text });
+    if (error) throw new Error(`Échec de l'envoi de l'email (Resend) : ${error.message}`);
+    return;
+  }
+
   await getTransporter().sendMail({ from, to, subject, html, text });
 
   if (!process.env.SMTP_HOST) {
