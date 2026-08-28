@@ -11,8 +11,10 @@ const register = asyncHandler(async (req, res) => {
 const login = asyncHandler(async (req, res) => {
   const user = await authService.login(req.body);
   const token = signToken(user.id, user.tokenVersion);
+  const csrfToken = generateCsrfToken();
   res.cookie(process.env.COOKIE_NAME, token, cookieOptions());
-  res.cookie(CSRF_COOKIE_NAME, generateCsrfToken(), csrfCookieOptions());
+  res.cookie(CSRF_COOKIE_NAME, csrfToken, csrfCookieOptions());
+  res.set("X-CSRF-Token", csrfToken);
   res.json(toSafeUser(user));
 });
 
@@ -26,10 +28,16 @@ const me = asyncHandler(async (req, res) => {
   const user = await authService.getById(req.user.id);
   // Migration en douceur : une session déjà active avant l'ajout du CSRF
   // n'a pas encore ce cookie — on le pose ici plutôt que de forcer une
-  // reconnexion.
-  if (!req.cookies[CSRF_COOKIE_NAME]) {
-    res.cookie(CSRF_COOKIE_NAME, generateCsrfToken(), csrfCookieOptions());
+  // reconnexion. Renvoyé aussi en en-tête à chaque appel (pas seulement à la
+  // création) : c'est le seul moyen pour un frontend sur une autre origine
+  // (ex. Vercel vs Render) de récupérer la valeur, un cookie posé par ce
+  // domaine n'étant pas lisible en JS depuis un autre domaine.
+  let csrfToken = req.cookies[CSRF_COOKIE_NAME];
+  if (!csrfToken) {
+    csrfToken = generateCsrfToken();
+    res.cookie(CSRF_COOKIE_NAME, csrfToken, csrfCookieOptions());
   }
+  res.set("X-CSRF-Token", csrfToken);
   res.json(toSafeUser(user));
 });
 

@@ -29,6 +29,12 @@ app.use(
       callback(new Error("Origine non autorisée par CORS."));
     },
     credentials: true,
+    // Un cookie posé par onrender.com n'est pas lisible en JS depuis
+    // vercel.app (origine différente) : le jeton CSRF est donc aussi renvoyé
+    // via cet en-tête de réponse (voir auth.controller.js), lisible par le
+    // frontend quel que soit son domaine — il faut l'exposer explicitement,
+    // sinon seuls les en-têtes "safelistés" CORS sont accessibles en JS.
+    exposedHeaders: ["X-CSRF-Token"],
   })
 );
 app.use(cookieParser());

@@ -7,21 +7,20 @@ export const api = axios.create({
   withCredentials: true,
 })
 
-const CSRF_COOKIE_NAME = "supmeal_csrf"
 const SAFE_METHODS = new Set(["get", "head", "options"])
 
-function readCookie(name) {
-  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`))
-  return match ? decodeURIComponent(match[1]) : null
-}
+// Pattern double-submit cookie (voir backend/middleware/csrf.js) : le serveur
+// pose aussi ce jeton en cookie, mais un cookie posé par le backend (ex.
+// onrender.com) n'est pas lisible en JS depuis une origine différente (ex.
+// vercel.app) — on le récupère donc via cet en-tête de réponse à la place
+// (renvoyé par /auth/login et /auth/me), et on le recopie en en-tête sur
+// toute requête mutante pour prouver qu'on n'est pas une requête cross-site
+// forgée.
+let csrfToken = null
 
-// Pattern double-submit cookie (voir backend/middleware/csrf.js) : ce cookie
-// n'est pas httpOnly, on le recopie donc en en-tête sur toute requête mutante
-// pour prouver qu'on n'est pas une requête cross-site forgée.
 api.interceptors.request.use((config) => {
-  if (!SAFE_METHODS.has((config.method ?? "get").toLowerCase())) {
-    const csrfToken = readCookie(CSRF_COOKIE_NAME)
-    if (csrfToken) config.headers["X-CSRF-Token"] = csrfToken
+  if (!SAFE_METHODS.has((config.method ?? "get").toLowerCase()) && csrfToken) {
+    config.headers["X-CSRF-Token"] = csrfToken
   }
   return config
 })
@@ -32,7 +31,11 @@ api.interceptors.request.use((config) => {
 // naturellement rediriger vers /login via ProtectedRoute. Les endpoints /auth/*
 // eux-mêmes sont exclus (un 401 sur /auth/login est juste "mauvais identifiants").
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    const token = response.headers["x-csrf-token"]
+    if (token) csrfToken = token
+    return response
+  },
   (error) => {
     if (error.response?.status === 401 && !error.config?.url?.startsWith("/auth/")) {
       window.dispatchEvent(new Event("supmeal:unauthorized"))
